@@ -56,13 +56,15 @@ router.post("/thanks", async (req, res) => {
 
   try {
     const body = req.body;
-    const profileId = await getProfileId(req.user.id);
 
-    if (profileId === null || profileId !== body.customerId) {
-      res.status(403).json({ error: "Forbidden: customerId does not match your account" });
+    // Derive the requester's profile from the authenticated session — never trust body.customerId for auth.
+    const profileId = await getProfileId(req.user.id);
+    if (profileId === null) {
+      res.status(403).json({ error: "Forbidden: no profile found for your account" });
       return;
     }
 
+    // Load the job and verify ownership server-side.
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, body.jobId));
     if (!job) {
       res.status(404).json({ error: "Job not found" });
@@ -73,6 +75,7 @@ router.post("/thanks", async (req, res) => {
       return;
     }
 
+    // Use the job's authoritative technicianId — never trust body.technicianId.
     const authorizedTechnicianId = job.technicianId;
 
     const [thankMessage] = await db.insert(thankMessagesTable).values({

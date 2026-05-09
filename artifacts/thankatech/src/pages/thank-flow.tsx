@@ -10,12 +10,14 @@ import {
   getGetJobQueryKey,
   getGetTechnicianQueryKey,
   getGetStripeConfigQueryKey,
+  ApiError,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, DollarSign, CheckCircle, ArrowLeft, Star, Lock } from "lucide-react";
+import { Heart, DollarSign, CheckCircle, ArrowLeft, Star, Lock, ShieldAlert } from "lucide-react";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -125,6 +127,9 @@ export function ThankFlow() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isCancellingPayment, setIsCancellingPayment] = useState(false);
 
+  const { data: myProfileData } = useMyProfile();
+  const myProfile = myProfileData?.profile ?? null;
+
   const { data: job } = useGetJob(jobId, { query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) } });
   const { data: tech } = useGetTechnician(
     job?.technicianId ?? 0,
@@ -133,6 +138,8 @@ export function ThankFlow() {
   const { data: stripeConfig } = useGetStripeConfig({
     query: { queryKey: getGetStripeConfigQueryKey(), retry: false },
   });
+
+  const isNotOwner = job !== undefined && myProfile !== null && job.customerId !== myProfile.profileId;
 
   useEffect(() => {
     if (stripeConfig?.publishableKey) {
@@ -189,8 +196,12 @@ export function ThankFlow() {
         setStep("celebration");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
-      setSubmitError(msg);
+      if (err instanceof ApiError && err.status === 403) {
+        setSubmitError("You don't have permission to send a thank you for this job. It may not belong to your account.");
+      } else {
+        const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        setSubmitError(msg);
+      }
     }
   }
 
@@ -212,6 +223,35 @@ export function ThankFlow() {
   }
 
   const isPending = createThankMessage.isPending || createPaymentIntent.isPending;
+
+  if (isNotOwner) {
+    return (
+      <div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-md text-center space-y-6"
+        >
+          <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
+            <ShieldAlert className="w-10 h-10 text-destructive" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-serif font-bold text-foreground">Access Denied</h1>
+            <p className="text-muted-foreground">
+              You can only send a thank you for jobs that belong to your account.
+            </p>
+          </div>
+          <Button
+            onClick={() => setLocation("/customer/dashboard")}
+            className="rounded-full px-8 bg-primary hover:bg-primary/90"
+          >
+            Back to dashboard
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center px-4 py-12">

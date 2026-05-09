@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -13,14 +12,58 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import {
   useListJobs,
   useGetMyProfile,
   useGetPoints,
   useGetTechnicianWallOfThanks,
   useGetTechnicianStats,
+  useRegisterPushToken,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+async function requestAndGetPushToken(): Promise<string | null> {
+  if (Platform.OS === "web") return null;
+
+  // Always request permission first — do not gate on project config.
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== "granted") return null;
+
+  try {
+    // Pass projectId when available (needed for standalone builds).
+    // In Expo Go, omitting projectId is fine — it infers one from the app.
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+    return tokenData.data;
+  } catch {
+    return null;
+  }
+}
 
 function StatusBadge({ status }: { status: string }) {
   const colors = useColors();
@@ -79,6 +122,7 @@ export default function TechnicianDashboard() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const [refreshing, setRefreshing] = useState(false);
+  const tokenRegisteredRef = useRef(false);
 
   const { data: profileData } = useGetMyProfile();
   const profile = profileData?.profile;
@@ -90,6 +134,23 @@ export default function TechnicianDashboard() {
   const { data: points, refetch: refetchPoints } = useGetPoints(profile?.profileId ?? 0);
   const { data: wall } = useGetTechnicianWallOfThanks(techId > 0 ? techId : 0);
   const { data: stats } = useGetTechnicianStats(techId > 0 ? techId : 0);
+
+  const { mutate: registerToken } = useRegisterPushToken();
+
+  useEffect(() => {
+    if (!profile || tokenRegisteredRef.current || isWeb) return;
+    tokenRegisteredRef.current = true;
+
+    requestAndGetPushToken()
+      .then(async (token) => {
+        if (token) {
+          registerToken({ data: { token } });
+          // Persist token so logout can unregister it cleanly.
+          await SecureStore.setItemAsync("push_notification_token", token);
+        }
+      })
+      .catch(() => {});
+  }, [profile, isWeb, registerToken]);
 
   const onRefresh = async () => {
     setRefreshing(true);

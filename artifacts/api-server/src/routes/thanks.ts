@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable } from "@workspace/db";
+import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable, pushTokensTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
@@ -103,6 +103,17 @@ router.post("/thanks", async (req, res) => {
     await awardPoints(authorizedTechnicianId, 20, "job_completed", job.id, "Completed a job");
     // tip_received points (50) are awarded only after payment is confirmed (webhook: payment_intent.succeeded)
 
+    // Derive customer display name from authenticated profile for notification integrity.
+    const [customerProfile] = await db
+      .select({ fullName: profilesTable.fullName })
+      .from(profilesTable)
+      .where(eq(profilesTable.id, profileId));
+    const customerDisplayName = customerProfile?.fullName ?? "A customer";
+
+    // Fire push notification to the technician asynchronously — don't let failures block the response.
+    sendThankNotification(authorizedTechnicianId, customerDisplayName, body.message, body.tipAmount ?? 0)
+      .catch((err) => req.log.warn({ err }, "Failed to send push notification"));
+
     return res.status(201).json(formatThank(thankMessage));
   } catch (err) {
     req.log.error({ err }, "Error creating thank message");
@@ -123,6 +134,80 @@ router.get("/thanks/recent", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+async function sendThankNotification(
+  technicianId: number,
+  customerName: string,
+  message: string,
+  tipAmount: number,
+): Promise<void> {
+  // Look up the technician's userId so we can find their profileId.
+  const [tech] = await db
+    .select({ userId: techniciansTable.userId })
+    .from(techniciansTable)
+    .where(eq(techniciansTable.id, technicianId));
+  if (!tech?.userId) return;
+
+  const [profile] = await db
+    .select({ id: profilesTable.id })
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, tech.userId));
+  if (!profile) return;
+
+  const tokens = await db
+    .select({ token: pushTokensTable.token })
+    .from(pushTokensTable)
+    .where(eq(pushTokensTable.profileId, profile.id));
+  if (tokens.length === 0) return;
+
+  const tipLine = tipAmount > 0 ? ` (+$${tipAmount} tip)` : "";
+  const body = `${customerName}: "${message.slice(0, 100)}${message.length > 100 ? "…" : ""}"${tipLine}`;
+
+  const messages = tokens.map(({ token }) => ({
+    to: token,
+    sound: "default" as const,
+    title: "You received a thank you! 🎉",
+    body,
+    data: { technicianId },
+  }));
+
+  const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-Encoding": "gzip, deflate",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(messages),
+  });
+
+  // Prune tokens that Expo reports as invalid/unregistered.
+  if (pushRes.ok) {
+    const json = (await pushRes.json()) as {
+      data?: Array<{ status: string; details?: { error?: string } }>;
+    };
+    const staleTokens: string[] = [];
+    (json.data ?? []).forEach((ticket, i) => {
+      if (
+        ticket.status === "error" &&
+        ticket.details?.error === "DeviceNotRegistered"
+      ) {
+        const staleToken = tokens[i]?.token;
+        if (staleToken) staleTokens.push(staleToken);
+      }
+    });
+    if (staleTokens.length > 0) {
+      await db
+        .delete(pushTokensTable)
+        .where(
+          and(
+            eq(pushTokensTable.profileId, profile.id),
+            sql`${pushTokensTable.token} = ANY(${staleTokens})`,
+          ),
+        );
+    }
+  }
+}
 
 async function awardPoints(userId: number, amount: number, type: string, jobId: number, description: string) {
   await db

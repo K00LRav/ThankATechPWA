@@ -228,6 +228,14 @@ export interface StripePaymentCompleteResult {
   success: boolean;
 }
 
+export interface PushTokenInput {
+  token: string;
+}
+
+export interface PushTokenResult {
+  ok: boolean;
+}
+
 /**
  * Opaque session token — `Bearer <sid>`.
  */

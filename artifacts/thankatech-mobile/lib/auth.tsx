@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 WebBrowser.maybeCompleteAuthSession();
 
 const AUTH_TOKEN_KEY = "auth_session_token";
+const PUSH_TOKEN_KEY = "push_notification_token";
 const ISSUER_URL = "https://replit.com/oidc";
 
 export interface User {
@@ -148,6 +149,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedToken = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
       if (storedToken) {
         const apiBase = getApiBaseUrl();
+
+        // Unregister push token before logging out so stale tokens don't accumulate.
+        const pushToken = await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
+        if (pushToken) {
+          await fetch(`${apiBase}/api/push-tokens`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ token: pushToken }),
+          }).catch(() => {});
+          await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
+        }
+
         await fetch(`${apiBase}/api/mobile-auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${storedToken}` },

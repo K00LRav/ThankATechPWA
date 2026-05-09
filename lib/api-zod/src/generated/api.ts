@@ -480,3 +480,39 @@ export const UpsertMyProfileResponse = zod.object({
   fullName: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
 });
+
+/**
+ * @summary Register an Expo push notification token for the current user
+ */
+export const RegisterPushTokenHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const RegisterPushTokenBody = zod.object({
+  token: zod.string(),
+});
+
+export const RegisterPushTokenResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Remove an Expo push notification token for the current user
+ */
+export const UnregisterPushTokenHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const UnregisterPushTokenBody = zod.object({
+  token: zod.string(),
+});
+
+export const UnregisterPushTokenResponse = zod.object({
+  ok: zod.boolean(),
+});

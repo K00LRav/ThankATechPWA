@@ -8,6 +8,7 @@ import pointsRouter from "./points";
 import platformRouter from "./platform";
 import profileRouter from "./profile";
 import stripeRouter from "./stripe";
+import pushTokensRouter from "./push-tokens";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(pointsRouter);
 router.use(platformRouter);
 router.use(profileRouter);
 router.use(stripeRouter);
+router.use(pushTokensRouter);
 
 export default router;

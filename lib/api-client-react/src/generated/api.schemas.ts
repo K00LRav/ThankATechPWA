@@ -190,6 +190,41 @@ export interface UpsertProfileInput {
   bio?: string;
 }
 
+export interface StripeConfig {
+  publishableKey: string;
+}
+
+export interface StripeOnboardingUrl {
+  url: string;
+}
+
+export interface StripeConnectStatus {
+  connected: boolean;
+  onboardingComplete: boolean;
+  /** @nullable */
+  accountId?: string | null;
+}
+
+export interface StripePaymentIntentInput {
+  thankMessageId: number;
+  amount: number;
+}
+
+export interface StripePaymentIntentResult {
+  clientSecret: string;
+  paymentIntentId: string;
+  connectedToStripe: boolean;
+}
+
+export interface StripePaymentCompleteInput {
+  thankMessageId: number;
+  paymentIntentId: string;
+}
+
+export interface StripePaymentCompleteResult {
+  success: boolean;
+}
+
 /**
  * Opaque session token — `Bearer <sid>`.
  */

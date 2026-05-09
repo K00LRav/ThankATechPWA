@@ -380,6 +380,55 @@ export const LogoutMobileSessionResponse = zod.object({
 });
 
 /**
+ * @summary Get Stripe publishable key
+ */
+export const GetStripeConfigResponse = zod.object({
+  publishableKey: zod.string(),
+});
+
+/**
+ * @summary Create Stripe Connect account and return onboarding URL
+ */
+export const CreateStripeConnectOnboardingResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
+ * @summary Check if current technician has a connected Stripe account
+ */
+export const GetStripeConnectStatusResponse = zod.object({
+  connected: zod.boolean(),
+  onboardingComplete: zod.boolean(),
+  accountId: zod.string().nullish(),
+});
+
+/**
+ * @summary Create a Stripe PaymentIntent for a tip
+ */
+export const CreateStripePaymentIntentBody = zod.object({
+  thankMessageId: zod.number(),
+  amount: zod.number(),
+});
+
+export const CreateStripePaymentIntentResponse = zod.object({
+  clientSecret: zod.string(),
+  paymentIntentId: zod.string(),
+  connectedToStripe: zod.boolean(),
+});
+
+/**
+ * @summary Record that a Stripe payment was completed
+ */
+export const RecordStripePaymentCompleteBody = zod.object({
+  thankMessageId: zod.number(),
+  paymentIntentId: zod.string(),
+});
+
+export const RecordStripePaymentCompleteResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary Get the current user's profile
  */
 export const GetMyProfileHeader = zod.object({

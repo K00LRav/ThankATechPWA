@@ -1,16 +1,112 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { useGetJob, useGetTechnician, useCreateThankMessage, getGetJobQueryKey, getGetTechnicianQueryKey } from "@workspace/api-client-react";
+import {
+  useGetJob,
+  useGetTechnician,
+  useCreateThankMessage,
+  useCreateStripePaymentIntent,
+  useRecordStripePaymentComplete,
+  useGetStripeConfig,
+  getGetJobQueryKey,
+  getGetTechnicianQueryKey,
+  getGetStripeConfigQueryKey,
+} from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, DollarSign, CheckCircle, ArrowLeft, Star } from "lucide-react";
+import { Heart, DollarSign, CheckCircle, ArrowLeft, Star, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 
 const TIP_PRESETS = [5, 10, 20, 50];
 
-type Step = "message" | "tip" | "celebration";
+type Step = "message" | "tip" | "payment" | "celebration";
+
+function PaymentForm({
+  clientSecret,
+  paymentIntentId,
+  thankMessageId,
+  tipAmount,
+  techName,
+  onSuccess,
+  onError,
+}: {
+  clientSecret: string;
+  paymentIntentId: string;
+  thankMessageId: number;
+  tipAmount: number;
+  techName: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const recordComplete = useRecordStripePaymentComplete();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      redirect: "if_required",
+    });
+
+    if (error) {
+      setErrorMessage(error.message ?? "Payment failed. Please try again.");
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      await recordComplete.mutateAsync({
+        data: { thankMessageId, paymentIntentId },
+      });
+      onSuccess();
+    } catch {
+      onError("Payment was processed but we couldn't save it. Please contact support.");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-card rounded-2xl border p-5 shadow-sm">
+        <p className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+          <Lock className="w-4 h-4" />
+          Secure payment — 100% goes to {techName.split(" ")[0]}
+        </p>
+        <PaymentElement />
+      </div>
+
+      {errorMessage && (
+        <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">
+          {errorMessage}
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        disabled={!stripe || !elements || isProcessing}
+        className="w-full h-12 text-base rounded-full bg-primary hover:bg-primary/90"
+      >
+        {isProcessing ? "Processing..." : `Pay $${tipAmount} tip`}
+        <Heart className="w-4 h-4 ml-2" fill="currentColor" />
+      </Button>
+    </form>
+  );
+}
 
 export function ThankFlow() {
   const params = useParams();
@@ -21,33 +117,101 @@ export function ThankFlow() {
   const [message, setMessage] = useState("");
   const [tipAmount, setTipAmount] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState("");
+  const [thankMessageId, setThankMessageId] = useState<number | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isCancellingPayment, setIsCancellingPayment] = useState(false);
 
   const { data: job } = useGetJob(jobId, { query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) } });
   const { data: tech } = useGetTechnician(
     job?.technicianId ?? 0,
     { query: { enabled: !!job?.technicianId, queryKey: getGetTechnicianQueryKey(job?.technicianId ?? 0) } }
   );
+  const { data: stripeConfig } = useGetStripeConfig({
+    query: { queryKey: getGetStripeConfigQueryKey(), retry: false },
+  });
+
+  useEffect(() => {
+    if (stripeConfig?.publishableKey) {
+      setStripePromise(loadStripe(stripeConfig.publishableKey));
+    }
+  }, [stripeConfig?.publishableKey]);
 
   const createThankMessage = useCreateThankMessage();
+  const createPaymentIntent = useCreateStripePaymentIntent();
 
   const techName = tech?.fullName ?? job?.technicianName ?? "Your Technician";
   const techInitials = techName.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
 
   const finalTip = tipAmount !== null ? tipAmount : (customTip ? parseFloat(customTip) || 0 : 0);
 
-  async function handleSubmit() {
+  async function handleSubmit(explicitTip?: number) {
     if (!job) return;
-    await createThankMessage.mutateAsync({
-      data: {
-        jobId: job.id,
-        customerId: job.customerId,
-        technicianId: job.technicianId,
-        message,
-        tipAmount: finalTip,
-      },
-    });
+    setSubmitError(null);
+
+    // Use explicitly-passed tip (e.g. from skip button) to avoid stale state
+    const tipToCharge = explicitTip !== undefined ? explicitTip : finalTip;
+
+    try {
+      const result = await createThankMessage.mutateAsync({
+        data: {
+          jobId: job.id,
+          customerId: job.customerId,
+          technicianId: job.technicianId,
+          message,
+          tipAmount: tipToCharge,
+        },
+      });
+
+      if (tipToCharge > 0 && job.technicianId) {
+        try {
+          const piResult = await createPaymentIntent.mutateAsync({
+            data: {
+              thankMessageId: result.id,
+              amount: tipToCharge,
+            },
+          });
+          setThankMessageId(result.id);
+          setClientSecret(piResult.clientSecret);
+          setPaymentIntentId(piResult.paymentIntentId);
+          setStep("payment");
+        } catch (piErr: unknown) {
+          // PI creation failed (e.g. technician not onboarded, or network error).
+          // The message was already saved — show an error and let them decide how to proceed.
+          const msg = piErr instanceof Error ? piErr.message : "Unable to set up payment. You can skip the tip and your message will still be sent.";
+          setThankMessageId(result.id);
+          setSubmitError(msg);
+        }
+      } else {
+        setStep("celebration");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setSubmitError(msg);
+    }
+  }
+
+  async function handleSkipPayment() {
+    setIsCancellingPayment(true);
+    if (thankMessageId) {
+      try {
+        await fetch("/api/stripe/payment-cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ thankMessageId }),
+        });
+      } catch {
+        // Non-fatal: if cancel fails, the PI will expire on Stripe's side automatically
+      }
+    }
+    setIsCancellingPayment(false);
     setStep("celebration");
   }
+
+  const isPending = createThankMessage.isPending || createPaymentIntent.isPending;
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center px-4 py-12">
@@ -188,25 +352,92 @@ export function ThankFlow() {
                 />
               </div>
 
+              {submitError && (
+                <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">
+                  {submitError}
+                </div>
+              )}
+
               <div className="space-y-3">
                 <Button
                   data-testid="button-send-thanks"
-                  onClick={handleSubmit}
-                  disabled={createThankMessage.isPending}
+                  onClick={() => handleSubmit()}
+                  disabled={isPending}
                   className="w-full h-12 text-base rounded-full bg-primary hover:bg-primary/90"
                 >
-                  {createThankMessage.isPending ? "Sending..." : `Send Thank You${finalTip > 0 ? ` + $${finalTip} tip` : ""}`}
+                  {isPending ? "Preparing..." : `Send Thank You${finalTip > 0 ? ` + $${finalTip} tip` : ""}`}
                   <Heart className="w-4 h-4 ml-2" fill="currentColor" />
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={handleSubmit}
-                  disabled={createThankMessage.isPending}
+                  onClick={() => handleSubmit(0)}
+                  disabled={isPending}
                   className="w-full h-10 text-sm text-muted-foreground rounded-full"
                 >
                   Skip tip, just send the message
                 </Button>
               </div>
+            </motion.div>
+          )}
+
+          {step === "payment" && clientSecret && stripePromise && thankMessageId && paymentIntentId && (
+            <motion.div
+              key="payment"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <button
+                onClick={() => setStep("tip")}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+
+              <div className="text-center space-y-3">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.1 }}
+                  className="mx-auto w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center"
+                >
+                  <DollarSign className="w-8 h-8 text-secondary" />
+                </motion.div>
+                <h2 className="text-2xl font-serif font-bold">Complete your tip</h2>
+                <p className="text-muted-foreground text-sm">
+                  <span className="font-semibold text-foreground">${finalTip}</span> for {techName.split(" ")[0]}. Your message has been sent!
+                </p>
+              </div>
+
+              {paymentError && (
+                <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">
+                  {paymentError}
+                </div>
+              )}
+
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <PaymentForm
+                  clientSecret={clientSecret}
+                  paymentIntentId={paymentIntentId}
+                  thankMessageId={thankMessageId}
+                  tipAmount={finalTip}
+                  techName={techName}
+                  onSuccess={() => setStep("celebration")}
+                  onError={(msg) => setPaymentError(msg)}
+                />
+              </Elements>
+
+              <Button
+                variant="ghost"
+                onClick={handleSkipPayment}
+                disabled={isCancellingPayment}
+                className="w-full h-10 text-sm text-muted-foreground rounded-full"
+              >
+                {isCancellingPayment ? "Cancelling…" : "Skip payment, just send the message"}
+              </Button>
             </motion.div>
           )}
 

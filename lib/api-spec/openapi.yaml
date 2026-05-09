@@ -22,6 +22,8 @@ tags:
     description: Browser and mobile authentication endpoints.
   - name: profile
     description: User profile operations
+  - name: stripe
+    description: Stripe payment operations
 paths:
   /healthz:
     get:
@@ -459,6 +461,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/LogoutSuccess'
 
+  /stripe/config:
+    get:
+      operationId: getStripeConfig
+      tags: [stripe]
+      summary: Get Stripe publishable key
+      responses:
+        "200":
+          description: Stripe config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeConfig"
+        "503":
+          description: Stripe not configured
+
+  /stripe/connect/onboard:
+    post:
+      operationId: createStripeConnectOnboarding
+      tags: [stripe]
+      summary: Create Stripe Connect account and return onboarding URL
+      responses:
+        "200":
+          description: Onboarding URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeOnboardingUrl"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Technician profile not found
+
+  /stripe/connect/status:
+    get:
+      operationId: getStripeConnectStatus
+      tags: [stripe]
+      summary: Check if current technician has a connected Stripe account
+      responses:
+        "200":
+          description: Stripe Connect status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeConnectStatus"
+        "401":
+          description: Unauthorized
+
+  /stripe/payment-intent:
+    post:
+      operationId: createStripePaymentIntent
+      tags: [stripe]
+      summary: Create a Stripe PaymentIntent for a tip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripePaymentIntentInput"
+      responses:
+        "200":
+          description: Payment intent created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripePaymentIntentResult"
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+
+  /stripe/payment-complete:
+    post:
+      operationId: recordStripePaymentComplete
+      tags: [stripe]
+      summary: Record that a Stripe payment was completed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripePaymentCompleteInput"
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripePaymentCompleteResult"
+        "401":
+          description: Unauthorized
+
   /profile/me:
     get:
       tags: [profile]
@@ -843,3 +936,64 @@ components:
           type: string
         bio:
           type: string
+
+    StripeConfig:
+      type: object
+      required: [publishableKey]
+      properties:
+        publishableKey:
+          type: string
+
+    StripeOnboardingUrl:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+
+    StripeConnectStatus:
+      type: object
+      required: [connected, onboardingComplete]
+      properties:
+        connected:
+          type: boolean
+        onboardingComplete:
+          type: boolean
+        accountId:
+          type: ["string", "null"]
+
+    StripePaymentIntentInput:
+      type: object
+      required: [thankMessageId, amount]
+      properties:
+        thankMessageId:
+          type: integer
+        amount:
+          type: number
+
+    StripePaymentIntentResult:
+      type: object
+      required: [clientSecret, paymentIntentId, connectedToStripe]
+      properties:
+        clientSecret:
+          type: string
+        paymentIntentId:
+          type: string
+        connectedToStripe:
+          type: boolean
+
+    StripePaymentCompleteInput:
+      type: object
+      required: [thankMessageId, paymentIntentId]
+      properties:
+        thankMessageId:
+          type: integer
+        paymentIntentId:
+          type: string
+
+    StripePaymentCompleteResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean

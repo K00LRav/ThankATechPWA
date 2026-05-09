@@ -36,6 +36,13 @@ import type {
   PlatformStats,
   PointTransaction,
   PointsBalance,
+  StripeConfig,
+  StripeConnectStatus,
+  StripeOnboardingUrl,
+  StripePaymentCompleteInput,
+  StripePaymentCompleteResult,
+  StripePaymentIntentInput,
+  StripePaymentIntentResult,
   Technician,
   TechnicianInput,
   TechnicianStats,
@@ -1943,6 +1950,421 @@ export const useLogoutMobileSession = <
   TContext
 > => {
   return useMutation(getLogoutMobileSessionMutationOptions(options));
+};
+
+/**
+ * @summary Get Stripe publishable key
+ */
+export const getGetStripeConfigUrl = () => {
+  return `/api/stripe/config`;
+};
+
+export const getStripeConfig = async (
+  options?: RequestInit,
+): Promise<StripeConfig> => {
+  return customFetch<StripeConfig>(getGetStripeConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStripeConfigQueryKey = () => {
+  return [`/api/stripe/config`] as const;
+};
+
+export const getGetStripeConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStripeConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStripeConfigQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStripeConfig>>> = ({
+    signal,
+  }) => getStripeConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStripeConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStripeConfig>>
+>;
+export type GetStripeConfigQueryError = ErrorType<void>;
+
+/**
+ * @summary Get Stripe publishable key
+ */
+
+export function useGetStripeConfig<
+  TData = Awaited<ReturnType<typeof getStripeConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStripeConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create Stripe Connect account and return onboarding URL
+ */
+export const getCreateStripeConnectOnboardingUrl = () => {
+  return `/api/stripe/connect/onboard`;
+};
+
+export const createStripeConnectOnboarding = async (
+  options?: RequestInit,
+): Promise<StripeOnboardingUrl> => {
+  return customFetch<StripeOnboardingUrl>(
+    getCreateStripeConnectOnboardingUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCreateStripeConnectOnboardingMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStripeConnectOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStripeConnectOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["createStripeConnectOnboarding"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStripeConnectOnboarding>>,
+    void
+  > = () => {
+    return createStripeConnectOnboarding(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStripeConnectOnboardingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStripeConnectOnboarding>>
+>;
+
+export type CreateStripeConnectOnboardingMutationError = ErrorType<void>;
+
+/**
+ * @summary Create Stripe Connect account and return onboarding URL
+ */
+export const useCreateStripeConnectOnboarding = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStripeConnectOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStripeConnectOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCreateStripeConnectOnboardingMutationOptions(options));
+};
+
+/**
+ * @summary Check if current technician has a connected Stripe account
+ */
+export const getGetStripeConnectStatusUrl = () => {
+  return `/api/stripe/connect/status`;
+};
+
+export const getStripeConnectStatus = async (
+  options?: RequestInit,
+): Promise<StripeConnectStatus> => {
+  return customFetch<StripeConnectStatus>(getGetStripeConnectStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStripeConnectStatusQueryKey = () => {
+  return [`/api/stripe/connect/status`] as const;
+};
+
+export const getGetStripeConnectStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStripeConnectStatus>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStripeConnectStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStripeConnectStatus>>
+  > = ({ signal }) => getStripeConnectStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStripeConnectStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStripeConnectStatus>>
+>;
+export type GetStripeConnectStatusQueryError = ErrorType<void>;
+
+/**
+ * @summary Check if current technician has a connected Stripe account
+ */
+
+export function useGetStripeConnectStatus<
+  TData = Awaited<ReturnType<typeof getStripeConnectStatus>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStripeConnectStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a Stripe PaymentIntent for a tip
+ */
+export const getCreateStripePaymentIntentUrl = () => {
+  return `/api/stripe/payment-intent`;
+};
+
+export const createStripePaymentIntent = async (
+  stripePaymentIntentInput: StripePaymentIntentInput,
+  options?: RequestInit,
+): Promise<StripePaymentIntentResult> => {
+  return customFetch<StripePaymentIntentResult>(
+    getCreateStripePaymentIntentUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(stripePaymentIntentInput),
+    },
+  );
+};
+
+export const getCreateStripePaymentIntentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStripePaymentIntent>>,
+    TError,
+    { data: BodyType<StripePaymentIntentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStripePaymentIntent>>,
+  TError,
+  { data: BodyType<StripePaymentIntentInput> },
+  TContext
+> => {
+  const mutationKey = ["createStripePaymentIntent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStripePaymentIntent>>,
+    { data: BodyType<StripePaymentIntentInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createStripePaymentIntent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStripePaymentIntentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStripePaymentIntent>>
+>;
+export type CreateStripePaymentIntentMutationBody =
+  BodyType<StripePaymentIntentInput>;
+export type CreateStripePaymentIntentMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a Stripe PaymentIntent for a tip
+ */
+export const useCreateStripePaymentIntent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStripePaymentIntent>>,
+    TError,
+    { data: BodyType<StripePaymentIntentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStripePaymentIntent>>,
+  TError,
+  { data: BodyType<StripePaymentIntentInput> },
+  TContext
+> => {
+  return useMutation(getCreateStripePaymentIntentMutationOptions(options));
+};
+
+/**
+ * @summary Record that a Stripe payment was completed
+ */
+export const getRecordStripePaymentCompleteUrl = () => {
+  return `/api/stripe/payment-complete`;
+};
+
+export const recordStripePaymentComplete = async (
+  stripePaymentCompleteInput: StripePaymentCompleteInput,
+  options?: RequestInit,
+): Promise<StripePaymentCompleteResult> => {
+  return customFetch<StripePaymentCompleteResult>(
+    getRecordStripePaymentCompleteUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(stripePaymentCompleteInput),
+    },
+  );
+};
+
+export const getRecordStripePaymentCompleteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordStripePaymentComplete>>,
+    TError,
+    { data: BodyType<StripePaymentCompleteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordStripePaymentComplete>>,
+  TError,
+  { data: BodyType<StripePaymentCompleteInput> },
+  TContext
+> => {
+  const mutationKey = ["recordStripePaymentComplete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordStripePaymentComplete>>,
+    { data: BodyType<StripePaymentCompleteInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return recordStripePaymentComplete(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordStripePaymentCompleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordStripePaymentComplete>>
+>;
+export type RecordStripePaymentCompleteMutationBody =
+  BodyType<StripePaymentCompleteInput>;
+export type RecordStripePaymentCompleteMutationError = ErrorType<void>;
+
+/**
+ * @summary Record that a Stripe payment was completed
+ */
+export const useRecordStripePaymentComplete = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordStripePaymentComplete>>,
+    TError,
+    { data: BodyType<StripePaymentCompleteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof recordStripePaymentComplete>>,
+  TError,
+  { data: BodyType<StripePaymentCompleteInput> },
+  TContext
+> => {
+  return useMutation(getRecordStripePaymentCompleteMutationOptions(options));
 };
 
 /**

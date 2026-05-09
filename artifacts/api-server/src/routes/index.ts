@@ -7,6 +7,7 @@ import thanksRouter from "./thanks";
 import pointsRouter from "./points";
 import platformRouter from "./platform";
 import profileRouter from "./profile";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(thanksRouter);
 router.use(pointsRouter);
 router.use(platformRouter);
 router.use(profileRouter);
+router.use(stripeRouter);
 
 export default router;

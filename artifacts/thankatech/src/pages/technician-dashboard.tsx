@@ -1,14 +1,17 @@
-import { useListJobs, useGetTechnicianStats, getListJobsQueryKey, getGetTechnicianStatsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useMyProfile } from "@/hooks/useMyProfile";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export function TechnicianDashboard() {
   const { data: profileEnvelope } = useMyProfile();
   const profile = profileEnvelope?.profile;
   const technicianId = profile?.technicianId ?? undefined;
+  const [location] = useLocation();
 
   const { data: stats, isLoading: isStatsLoading } = useGetTechnicianStats(technicianId!, {
     query: { enabled: !!technicianId, queryKey: getGetTechnicianStatsQueryKey(technicianId!) }
@@ -18,6 +21,31 @@ export function TechnicianDashboard() {
     {},
     { query: { enabled: !!technicianId, queryKey: getListJobsQueryKey({}) } }
   );
+
+  const { data: stripeStatus, refetch: refetchStripeStatus } = useGetStripeConnectStatus({
+    query: {
+      enabled: !!technicianId,
+      queryKey: getGetStripeConnectStatusQueryKey(),
+      retry: false,
+    },
+  });
+
+  const createOnboarding = useCreateStripeConnectOnboarding();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe") === "success" || params.get("stripe") === "refresh") {
+      refetchStripeStatus();
+    }
+  }, [location, refetchStripeStatus]);
+
+  async function handleStripeConnect() {
+    try {
+      const result = await createOnboarding.mutateAsync(undefined);
+      window.location.href = result.url;
+    } catch {
+    }
+  }
 
   if (!technicianId) {
     return (
@@ -32,6 +60,8 @@ export function TechnicianDashboard() {
     );
   }
 
+  const stripeConnected = stripeStatus?.connected && stripeStatus?.onboardingComplete;
+
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
       <div className="container mx-auto max-w-6xl space-y-8">
@@ -41,6 +71,47 @@ export function TechnicianDashboard() {
             Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}. Here's how you're doing.
           </p>
         </div>
+
+        {stripeStatus !== undefined && (
+          <div className={`rounded-2xl border p-5 flex items-center gap-4 ${stripeConnected ? "bg-secondary/5 border-secondary/20" : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/40"}`}>
+            <div className={`p-3 rounded-full flex-shrink-0 ${stripeConnected ? "bg-secondary/10" : "bg-amber-100 dark:bg-amber-900/40"}`}>
+              {stripeConnected ? (
+                <ShieldCheck className="w-6 h-6 text-secondary" />
+              ) : (
+                <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              {stripeConnected ? (
+                <>
+                  <p className="font-semibold text-secondary">Payouts enabled</p>
+                  <p className="text-sm text-muted-foreground">Your bank account is connected. You'll receive tips directly.</p>
+                </>
+              ) : stripeStatus?.connected ? (
+                <>
+                  <p className="font-semibold text-amber-700 dark:text-amber-400">Finish setting up payouts</p>
+                  <p className="text-sm text-muted-foreground">Complete your Stripe onboarding to receive tips to your bank account.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-amber-700 dark:text-amber-400">Set up payouts to receive tips</p>
+                  <p className="text-sm text-muted-foreground">Link your bank account so customers can tip you directly. Takes 2 minutes.</p>
+                </>
+              )}
+            </div>
+            {!stripeConnected && (
+              <Button
+                onClick={handleStripeConnect}
+                disabled={createOnboarding.isPending}
+                size="sm"
+                className="rounded-full flex-shrink-0 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
+              >
+                {createOnboarding.isPending ? "Loading..." : stripeStatus?.connected ? "Continue setup" : "Set up payouts"}
+                <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {isStatsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

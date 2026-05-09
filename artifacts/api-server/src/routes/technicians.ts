@@ -100,9 +100,10 @@ router.get("/technicians/:id/stats", async (req, res) => {
       .where(eq(jobsTable.technicianId, id));
 
     const totalThanks = thanks.length;
-    const thanksWithTip = thanks.filter(t => parseFloat(t.tipAmount ?? "0") > 0);
-    const totalTips = thanksWithTip.length;
-    const totalEarned = thanks.reduce((sum, t) => sum + parseFloat(t.tipAmount ?? "0"), 0);
+    // Only count tips where payment was actually confirmed (not pending/failed/skipped)
+    const settledTips = thanks.filter(t => t.paymentStatus === 'succeeded' && parseFloat(t.tipAmount ?? "0") > 0);
+    const totalTips = settledTips.length;
+    const totalEarned = settledTips.reduce((sum, t) => sum + parseFloat(t.tipAmount ?? "0"), 0);
     const avgTipAmount = totalTips > 0 ? totalEarned / totalTips : 0;
 
     return res.json({

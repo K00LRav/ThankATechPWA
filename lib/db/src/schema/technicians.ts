@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -15,6 +15,8 @@ export const techniciansTable = pgTable("technicians", {
   certifications: text("certifications").array().notNull().default([]),
   totalThanks: integer("total_thanks").notNull().default(0),
   totalEarned: numeric("total_earned", { precision: 12, scale: 2 }).notNull().default("0"),
+  stripeAccountId: varchar("stripe_account_id"),
+  stripeOnboardingComplete: boolean("stripe_onboarding_complete").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

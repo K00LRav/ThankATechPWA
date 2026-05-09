@@ -91,16 +91,14 @@ router.post("/thanks", async (req, res) => {
       .update(techniciansTable)
       .set({
         totalThanks: sql`${techniciansTable.totalThanks} + 1`,
-        totalEarned: sql`${techniciansTable.totalEarned} + ${(body.tipAmount ?? 0).toString()}`,
+        // totalEarned is updated only after payment is confirmed (webhook: payment_intent.succeeded)
       })
       .where(eq(techniciansTable.id, authorizedTechnicianId));
 
     await awardPoints(profileId, 15, "thank_sent", job.id, "Sent a thank you");
     await awardPoints(authorizedTechnicianId, 80, "thank_received", job.id, "Received a thank you");
     await awardPoints(authorizedTechnicianId, 20, "job_completed", job.id, "Completed a job");
-    if (body.tipAmount && body.tipAmount > 0) {
-      await awardPoints(authorizedTechnicianId, 50, "tip_received", job.id, "Received a tip");
-    }
+    // tip_received points (50) are awarded only after payment is confirmed (webhook: payment_intent.succeeded)
 
     return res.status(201).json(formatThank(thankMessage));
   } catch (err) {
@@ -152,6 +150,8 @@ function formatThank(t: typeof thankMessagesTable.$inferSelect) {
     technicianAvatar: t.technicianAvatar,
     message: t.message,
     tipAmount: parseFloat(t.tipAmount ?? "0"),
+    stripePaymentIntentId: t.stripePaymentIntentId ?? null,
+    paymentStatus: t.paymentStatus ?? "none",
     photoUrl: t.photoUrl,
     createdAt: t.createdAt?.toISOString(),
   };

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,6 +12,8 @@ export const thankMessagesTable = pgTable("thank_messages", {
   technicianAvatar: text("technician_avatar"),
   message: text("message").notNull(),
   tipAmount: numeric("tip_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
+  paymentStatus: varchar("payment_status").notNull().default("none"),
   photoUrl: text("photo_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

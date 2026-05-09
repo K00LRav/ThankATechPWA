@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ThankATech API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: technicians
+    description: Technician operations
+  - name: jobs
+    description: Job operations
+  - name: thanks
+    description: Thank message operations
+  - name: points
+    description: ThankYou Points operations
 paths:
   /healthz:
     get:
@@ -24,6 +32,307 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /technicians:
+    get:
+      operationId: listTechnicians
+      tags: [technicians]
+      summary: List/search technicians
+      parameters:
+        - in: query
+          name: specialty
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of technicians
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Technician"
+    post:
+      operationId: createTechnician
+      tags: [technicians]
+      summary: Create technician profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicianInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+
+  /technicians/{id}:
+    get:
+      operationId: getTechnician
+      tags: [technicians]
+      summary: Get technician by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Technician
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+        "404":
+          description: Not found
+
+  /technicians/{id}/wall-of-thanks:
+    get:
+      operationId: getTechnicianWallOfThanks
+      tags: [technicians]
+      summary: Get technician's wall of thanks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of thank messages for technician
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ThankMessage"
+
+  /technicians/{id}/stats:
+    get:
+      operationId: getTechnicianStats
+      tags: [technicians]
+      summary: Get technician stats summary
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicianStats"
+
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List jobs
+      parameters:
+        - in: query
+          name: customerId
+          schema:
+            type: integer
+        - in: query
+          name: technicianId
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a job request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get job by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateJob
+      tags: [jobs]
+      summary: Update job status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobUpdate"
+      responses:
+        "200":
+          description: Updated job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+
+  /thanks:
+    get:
+      operationId: listThankMessages
+      tags: [thanks]
+      summary: List thank messages
+      parameters:
+        - in: query
+          name: technicianId
+          schema:
+            type: integer
+        - in: query
+          name: customerId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of thank messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ThankMessage"
+    post:
+      operationId: createThankMessage
+      tags: [thanks]
+      summary: Send a thank you message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThankMessageInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThankMessage"
+
+  /thanks/recent:
+    get:
+      operationId: getRecentThanks
+      tags: [thanks]
+      summary: Get recent thank messages across the platform
+      responses:
+        "200":
+          description: Recent thanks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ThankMessage"
+
+  /points/{userId}:
+    get:
+      operationId: getPoints
+      tags: [points]
+      summary: Get user points balance
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Points balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointsBalance"
+
+  /points/{userId}/transactions:
+    get:
+      operationId: getPointTransactions
+      tags: [points]
+      summary: Get points transaction history
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PointTransaction"
+
+  /platform/stats:
+    get:
+      operationId: getPlatformStats
+      tags: [health]
+      summary: Get overall platform stats
+      responses:
+        "200":
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +343,214 @@ components:
       required:
         - status
 
+    Technician:
+      type: object
+      required: [id, fullName, specialty, serviceArea, bio, totalThanks, totalEarned, avatarUrl]
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        specialty:
+          type: string
+        specialties:
+          type: array
+          items:
+            type: string
+        serviceArea:
+          type: string
+        bio:
+          type: string
+        hourlyRate:
+          type: ["number", "null"]
+        certifications:
+          type: array
+          items:
+            type: string
+        totalThanks:
+          type: integer
+        totalEarned:
+          type: number
+        createdAt:
+          type: string
+
+    TechnicianInput:
+      type: object
+      required: [fullName, specialty, serviceArea, bio]
+      properties:
+        fullName:
+          type: string
+        avatarUrl:
+          type: string
+        specialty:
+          type: string
+        specialties:
+          type: array
+          items:
+            type: string
+        serviceArea:
+          type: string
+        bio:
+          type: string
+        hourlyRate:
+          type: number
+        certifications:
+          type: array
+          items:
+            type: string
+
+    TechnicianStats:
+      type: object
+      required: [technicianId, totalThanks, totalTips, totalEarned, totalJobs, avgTipAmount]
+      properties:
+        technicianId:
+          type: integer
+        totalThanks:
+          type: integer
+        totalTips:
+          type: integer
+        totalEarned:
+          type: number
+        totalJobs:
+          type: integer
+        avgTipAmount:
+          type: number
+
+    Job:
+      type: object
+      required: [id, customerId, technicianId, title, status, createdAt]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        technicianId:
+          type: integer
+        technicianName:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+
+    JobInput:
+      type: object
+      required: [customerId, technicianId, title]
+      properties:
+        customerId:
+          type: integer
+        technicianId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+
+    JobUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+        completedAt:
+          type: string
+
+    ThankMessage:
+      type: object
+      required: [id, jobId, customerId, technicianId, message, tipAmount, createdAt]
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        technicianId:
+          type: integer
+        technicianName:
+          type: string
+        technicianAvatar:
+          type: ["string", "null"]
+        message:
+          type: string
+        tipAmount:
+          type: number
+        photoUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ThankMessageInput:
+      type: object
+      required: [jobId, customerId, technicianId, message]
+      properties:
+        jobId:
+          type: integer
+        customerId:
+          type: integer
+        technicianId:
+          type: integer
+        message:
+          type: string
+        tipAmount:
+          type: number
+        photoUrl:
+          type: string
+
+    PointsBalance:
+      type: object
+      required: [userId, balance]
+      properties:
+        userId:
+          type: integer
+        balance:
+          type: integer
+        updatedAt:
+          type: string
+
+    PointTransaction:
+      type: object
+      required: [id, userId, amount, type, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        amount:
+          type: integer
+        type:
+          type: string
+        jobId:
+          type: ["integer", "null"]
+        description:
+          type: string
+        createdAt:
+          type: string
+
+    PlatformStats:
+      type: object
+      required: [totalTechnicians, totalThanks, totalTipsAmount, totalJobs]
+      properties:
+        totalTechnicians:
+          type: integer
+        totalThanks:
+          type: integer
+        totalTipsAmount:
+          type: number
+        totalJobs:
+          type: integer

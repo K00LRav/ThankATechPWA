@@ -1,0 +1,271 @@
+**✅ Here is your complete, detailed project documentation.**
+
+Copy everything below and save it as **`PROJECT-DOCUMENTATION.md`** in the root of your project folder in VS Code. Keep this file open as your main reference.
+
+---
+
+```markdown
+# ThankATech - Project Documentation
+
+**Project Name:** ThankATech  
+**Tagline:** Real thanks. Real tips. No ratings.  
+**Version:** MVP v1.0  
+**Goal:** Create a gratitude-first marketplace where customers thank technicians with messages + optional tips after a job is completed.
+
+---
+
+## 1. Vision & Core Values
+
+- Help technicians feel genuinely appreciated.
+- Remove toxic review/rating systems.
+- Make saying "thank you" delightful and rewarding.
+- Keep the platform **free for technicians** to join and receive jobs.
+- Monetize **only** through a small fee (8–10%) on tips.
+- Use **ThankYou Points** for light gamification.
+
+**Core Promise:** Every completed job ends with gratitude, not judgment.
+
+---
+
+## 2. User Types
+
+| User Type     | Description |
+|---------------|-----------|
+| **Customer**  | Homeowners / people who need service |
+| **Technician**| Individual service providers |
+| **Shop**      | Business with multiple technicians (future) |
+
+---
+
+## 3. Core User Flows
+
+### Customer Flow
+1. Browse / Search technicians (by location & specialty)
+2. View technician profile (bio, skills, Wall of Thanks teaser)
+3. Create job request
+4. Get matched / accepted
+5. Job completed by tech
+6. **Thank Flow** (most important screen)
+7. Send thank you message + optional tip + photo
+8. Earn ThankYou Points
+
+### Technician Flow
+1. Create free profile
+2. Receive job requests
+3. Accept / Complete job
+4. Receive thank you message + tip instantly
+5. View personal **Wall of Thanks**
+6. Check ThankYou Points balance & redeem
+7. Receive payouts (Stripe)
+
+---
+
+## 4. ThankYou Points System
+
+**Earning Rules:**
+
+| Action                        | Customer Points | Technician Points |
+|-------------------------------|-----------------|-------------------|
+| Send a thank you              | +15             | -                 |
+| Receive a thank you           | -               | +80               |
+| Receive a tip                 | -               | +50               |
+| Complete a job                | -               | +20               |
+| First thank you ever          | +50 (once)      | -                 |
+
+**Redemptions (planned):**
+- Tech: Cash out (1000 pts ≈ $10), featured placement, gift cards
+- Customer: Discount on next tip, digital certificates
+
+---
+
+## 5. Tech Stack
+
+- **Framework:** Next.js 15 (App Router) + TypeScript
+- **Styling:** Tailwind CSS + shadcn/ui
+- **Database:** Supabase (PostgreSQL + Auth + Storage + Realtime)
+- **Payments:** Stripe Connect
+- **Deployment:** Vercel
+- **Icons:** Lucide React
+- **Notifications:** Supabase Realtime + (later) Twilio SMS
+
+---
+
+## 6. Database Schema (Supabase)
+
+```sql
+-- Run this in Supabase SQL Editor
+
+create table profiles (
+  id uuid primary key references auth.users on delete cascade,
+  full_name text,
+  avatar_url text,
+  user_type text check (user_type in ('customer', 'technician')),
+  phone text,
+  created_at timestamp default now()
+);
+
+create table technician_profiles (
+  id uuid primary key references profiles(id),
+  specialties text[],
+  service_area text,
+  bio text,
+  hourly_rate decimal(10,2),
+  certifications text[],
+  total_thanks bigint default 0,
+  total_earned decimal(12,2) default 0
+);
+
+create table jobs (
+  id uuid primary key default uuid_generate_v4(),
+  customer_id uuid references profiles(id),
+  technician_id uuid references profiles(id),
+  title text not null,
+  description text,
+  address text,
+  status text default 'pending',
+  created_at timestamp default now(),
+  completed_at timestamp
+);
+
+create table thank_messages (
+  id uuid primary key default uuid_generate_v4(),
+  job_id uuid references jobs(id),
+  customer_id uuid references profiles(id),
+  technician_id uuid references profiles(id),
+  message text,
+  tip_amount decimal(10,2) default 0,
+  photo_url text,
+  created_at timestamp default now()
+);
+
+create table thank_you_points (
+  user_id uuid primary key references profiles(id),
+  balance bigint default 0,
+  updated_at timestamp default now()
+);
+
+create table point_transactions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references profiles(id),
+  amount integer not null,
+  type text not null,
+  job_id uuid references jobs(id),
+  created_at timestamp default now()
+);
+```
+
+---
+
+## 7. Folder Structure
+
+```
+thankatech/
+├── app/
+│   ├── (auth)/               # Login, Register pages
+│   ├── (customer)/           # Customer dashboard & flows
+│   ├── (technician)/         # Tech dashboard & Wall of Thanks
+│   ├── api/                  # Route handlers
+│   ├── layout.tsx
+│   └── page.tsx              # Homepage
+├── components/
+│   ├── ui/                   # shadcn components
+│   ├── ThankFlow.tsx
+│   ├── WallOfThanks.tsx
+│   ├── PointsDashboard.tsx
+│   ├── JobCard.tsx
+│   └── ...
+├── lib/
+│   ├── supabase.ts
+│   └── stripe.ts
+├── hooks/
+├── types/
+├── supabase/migrations/
+└── public/
+```
+
+---
+
+## 8. Key Features to Build (Priority Order)
+
+1. **Authentication** (Customer + Technician)
+2. **Profile Creation**
+3. **Search & Browse Technicians**
+4. **Job Request & Management**
+5. **Thank Flow** (Beautiful post-job screen)
+6. **ThankYou Points Engine**
+7. **Wall of Thanks**
+8. **Stripe Tip + Payouts**
+9. **Mobile PWA Setup**
+
+---
+
+## 9. Design Guidelines
+
+- Primary Color: **#FF6B35** (Warm Orange)
+- Secondary: **#166534** (Deep Green)
+- Background: Off-white / warm neutral
+- Font: **Inter** (body), **Playfair Display** (headings)
+- Feel: Warm, clean, celebratory, trustworthy
+
+---
+
+## 10. Setup Instructions (For VS Code)
+
+1. Run `npx create-next-app@latest . --typescript --tailwind --eslint --app --yes`
+2. Install dependencies (see previous message)
+3. Connect Supabase project
+4. Add environment variables (`.env.local`)
+5. Run `npm run dev`
+
+---
+
+## 11. Environment Variables (.env.local)
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
+```
+
+---
+
+**Next Actions (Recommended Order):**
+
+1. Create the project with `create-next-app`
+2. Set up Supabase + run the schema
+3. Build Authentication system
+4. Build the **Thank Flow** component (most important)
+
+---
+
+**You now have everything you need.**
+
+Keep this `PROJECT-DOCUMENTATION.md` file open in VS Code.  
+
+Whenever you’re ready, reply with one of these:
+
+- “Give me the Auth setup code”
+- “Give me the Thank Flow component”
+- “Give me Supabase client setup”
+- “Next step is…”
+
+I will give you complete, ready-to-paste code for each part.
+
+We’re officially building now. Let’s go! 🔥
+
+**— Grok (Your Senior Full-Stack Architect)**
+```
+
+---
+
+Save this as `PROJECT-DOCUMENTATION.md` right now.
+
+Once done, tell me:  
+**“Ready for next step”** — and I’ll start giving you the actual code files one by one.  
+
+You’ve got this.

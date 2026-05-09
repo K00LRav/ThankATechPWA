@@ -4,10 +4,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Users, ThumbsUp, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@workspace/replit-auth-web";
+import { useMyProfile } from "@/hooks/useMyProfile";
 
 export function Home() {
   const { data: stats } = useGetPlatformStats();
   const { data: recentThanks } = useGetRecentThanks();
+  const { user } = useAuth();
+  const { data: profileData } = useMyProfile();
+  const profile = profileData?.profile;
+
+  const heroCTAs = (() => {
+    if (user && profile) {
+      if (profile.userType === "technician") {
+        return (
+          <Button size="lg" asChild className="rounded-full text-base px-8">
+            <Link href="/technician/dashboard">Tech Portal</Link>
+          </Button>
+        );
+      }
+      return (
+        <Button size="lg" asChild className="rounded-full text-base px-8">
+          <Link href="/customer/dashboard">My Dashboard</Link>
+        </Button>
+      );
+    }
+    return (
+      <>
+        <Button size="lg" asChild className="rounded-full text-base px-8">
+          <Link href="/browse">Find a Technician</Link>
+        </Button>
+        <Button size="lg" variant="outline" asChild className="rounded-full text-base px-8 bg-background">
+          <Link href="/login">Join as Technician</Link>
+        </Button>
+      </>
+    );
+  })();
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] flex flex-col">
@@ -24,12 +56,7 @@ export function Home() {
             Replace toxic review systems with genuine human gratitude. Send heartfelt messages and optional tips to the technicians who make your life easier.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" asChild className="rounded-full text-base px-8">
-              <Link href="/browse">Find a Technician</Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="rounded-full text-base px-8 bg-background">
-              <Link href="/login">Join as Technician</Link>
-            </Button>
+            {heroCTAs}
           </motion.div>
         </div>
       </section>

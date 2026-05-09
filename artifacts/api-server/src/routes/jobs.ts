@@ -1,28 +1,66 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { jobsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { jobsTable, profilesTable, techniciansTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 
 const router = Router();
 
+interface UserIdentity {
+  profileId: number | null;
+  technicianId: number | null;
+  userType: string | null;
+}
+
+async function getUserIdentity(userId: string): Promise<UserIdentity> {
+  const [profile] = await db
+    .select({ id: profilesTable.id, userType: profilesTable.userType })
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, userId));
+
+  if (!profile) return { profileId: null, technicianId: null, userType: null };
+
+  let technicianId: number | null = null;
+  if (profile.userType === "technician") {
+    const [tech] = await db
+      .select({ id: techniciansTable.id })
+      .from(techniciansTable)
+      .where(eq(techniciansTable.userId, userId));
+    technicianId = tech?.id ?? null;
+  }
+
+  return { profileId: profile.id, technicianId, userType: profile.userType };
+}
+
 router.get("/jobs", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   try {
-    const { customerId, technicianId, status } = req.query as {
-      customerId?: string;
-      technicianId?: string;
-      status?: string;
-    };
+    const { profileId, technicianId, userType } = await getUserIdentity(req.user.id);
 
-    let conditions: ReturnType<typeof eq>[] = [];
-    if (customerId) conditions.push(eq(jobsTable.customerId, parseInt(customerId)));
-    if (technicianId) conditions.push(eq(jobsTable.technicianId, parseInt(technicianId)));
-    if (status) conditions.push(eq(jobsTable.status, status));
+    if (!userType) {
+      return res.json([]);
+    }
 
-    const query = conditions.length > 0
-      ? db.select().from(jobsTable).where(and(...conditions)).orderBy(sql`${jobsTable.createdAt} DESC`)
-      : db.select().from(jobsTable).orderBy(sql`${jobsTable.createdAt} DESC`);
+    let jobs;
+    if (userType === "customer" && profileId !== null) {
+      jobs = await db
+        .select()
+        .from(jobsTable)
+        .where(eq(jobsTable.customerId, profileId))
+        .orderBy(sql`${jobsTable.createdAt} DESC`);
+    } else if (userType === "technician" && technicianId !== null) {
+      jobs = await db
+        .select()
+        .from(jobsTable)
+        .where(eq(jobsTable.technicianId, technicianId))
+        .orderBy(sql`${jobsTable.createdAt} DESC`);
+    } else {
+      return res.json([]);
+    }
 
-    const jobs = await query;
     return res.json(jobs.map(formatJob));
   } catch (err) {
     req.log.error({ err }, "Error listing jobs");
@@ -31,11 +69,29 @@ router.get("/jobs", async (req, res) => {
 });
 
 router.post("/jobs", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   try {
+    const { profileId, userType } = await getUserIdentity(req.user.id);
+
+    if (userType !== "customer" || profileId === null) {
+      res.status(403).json({ error: "Only customers can create jobs" });
+      return;
+    }
+
     const body = req.body;
+
+    const [profile] = await db
+      .select({ fullName: profilesTable.fullName })
+      .from(profilesTable)
+      .where(eq(profilesTable.id, profileId));
+
     const [job] = await db.insert(jobsTable).values({
-      customerId: body.customerId,
-      customerName: body.customerName ?? "",
+      customerId: profileId,
+      customerName: profile?.fullName ?? body.customerName ?? "",
       technicianId: body.technicianId,
       technicianName: body.technicianName ?? "",
       title: body.title,
@@ -51,10 +107,22 @@ router.post("/jobs", async (req, res) => {
 });
 
 router.get("/jobs/:id", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   try {
     const id = parseInt(req.params.id);
+    const { profileId, technicianId } = await getUserIdentity(req.user.id);
+
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) return res.status(404).json({ error: "Not found" });
+
+    if (job.customerId !== profileId && job.technicianId !== technicianId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     return res.json(formatJob(job));
   } catch (err) {
     req.log.error({ err }, "Error getting job");
@@ -63,8 +131,22 @@ router.get("/jobs/:id", async (req, res) => {
 });
 
 router.patch("/jobs/:id", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   try {
     const id = parseInt(req.params.id);
+    const { technicianId } = await getUserIdentity(req.user.id);
+
+    const [existing] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+
+    if (existing.technicianId !== technicianId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const body = req.body;
     const updates: Partial<typeof jobsTable.$inferInsert> = {};
     if (body.status !== undefined) updates.status = body.status;
@@ -75,7 +157,6 @@ router.patch("/jobs/:id", async (req, res) => {
       .set(updates)
       .where(eq(jobsTable.id, id))
       .returning();
-    if (!job) return res.status(404).json({ error: "Not found" });
     return res.json(formatJob(job));
   } catch (err) {
     req.log.error({ err }, "Error updating job");

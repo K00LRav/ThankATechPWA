@@ -10,7 +10,8 @@ import { TechnicianProfile } from "@/pages/technician-profile";
 import { CustomerDashboard } from "@/pages/customer-dashboard";
 import { TechnicianDashboard } from "@/pages/technician-dashboard";
 import { ThankFlow } from "@/pages/thank-flow";
-import { Login } from "@/pages/login";
+import { Login, Onboard } from "@/pages/login";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -23,10 +24,27 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/browse" component={Browse} />
           <Route path="/technician/:id" component={TechnicianProfile} />
-          <Route path="/customer/dashboard" component={CustomerDashboard} />
-          <Route path="/technician/dashboard" component={TechnicianDashboard} />
-          <Route path="/thank/:jobId" component={ThankFlow} />
+          <Route path="/customer/dashboard">
+            <ProtectedRoute requireProfile requireUserType="customer">
+              <CustomerDashboard />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/technician/dashboard">
+            <ProtectedRoute requireProfile requireUserType="technician">
+              <TechnicianDashboard />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/thank/:jobId">
+            <ProtectedRoute requireProfile requireUserType="customer">
+              <ThankFlow />
+            </ProtectedRoute>
+          </Route>
           <Route path="/login" component={Login} />
+          <Route path="/onboard">
+            <ProtectedRoute>
+              <Onboard />
+            </ProtectedRoute>
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </main>

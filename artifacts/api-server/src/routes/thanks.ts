@@ -1,9 +1,17 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable } from "@workspace/db";
+import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
+
+async function getProfileId(userId: string): Promise<number | null> {
+  const [profile] = await db
+    .select({ id: profilesTable.id })
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, userId));
+  return profile?.id ?? null;
+}
 
 router.get("/thanks", async (req, res) => {
   try {
@@ -11,6 +19,18 @@ router.get("/thanks", async (req, res) => {
       technicianId?: string;
       customerId?: string;
     };
+
+    if (customerId) {
+      if (!req.isAuthenticated()) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const profileId = await getProfileId(req.user.id);
+      if (profileId === null || profileId !== parseInt(customerId)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
 
     let conditions: ReturnType<typeof eq>[] = [];
     if (technicianId) conditions.push(eq(thankMessagesTable.technicianId, parseInt(technicianId)));
@@ -29,14 +49,37 @@ router.get("/thanks", async (req, res) => {
 });
 
 router.post("/thanks", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   try {
     const body = req.body;
+    const profileId = await getProfileId(req.user.id);
+
+    if (profileId === null || profileId !== body.customerId) {
+      res.status(403).json({ error: "Forbidden: customerId does not match your account" });
+      return;
+    }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, body.jobId));
+    if (!job) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+    if (job.customerId !== profileId) {
+      res.status(403).json({ error: "Forbidden: this job does not belong to your account" });
+      return;
+    }
+
+    const authorizedTechnicianId = job.technicianId;
 
     const [thankMessage] = await db.insert(thankMessagesTable).values({
-      jobId: body.jobId,
-      customerId: body.customerId,
+      jobId: job.id,
+      customerId: profileId,
       customerName: body.customerName ?? "A customer",
-      technicianId: body.technicianId,
+      technicianId: authorizedTechnicianId,
       technicianName: body.technicianName ?? "",
       technicianAvatar: body.technicianAvatar ?? null,
       message: body.message,
@@ -44,22 +87,19 @@ router.post("/thanks", async (req, res) => {
       photoUrl: body.photoUrl ?? null,
     }).returning();
 
-    // Update technician totals
     await db
       .update(techniciansTable)
       .set({
         totalThanks: sql`${techniciansTable.totalThanks} + 1`,
         totalEarned: sql`${techniciansTable.totalEarned} + ${(body.tipAmount ?? 0).toString()}`,
       })
-      .where(eq(techniciansTable.id, body.technicianId));
+      .where(eq(techniciansTable.id, authorizedTechnicianId));
 
-    // Award ThankYou points to customer (+15)
-    await awardPoints(body.customerId, 15, "thank_sent", body.jobId, "Sent a thank you");
-    // Award ThankYou points to technician (+80 for receiving, +50 for tip if applicable, +20 for job)
-    await awardPoints(body.technicianId, 80, "thank_received", body.jobId, "Received a thank you");
-    await awardPoints(body.technicianId, 20, "job_completed", body.jobId, "Completed a job");
+    await awardPoints(profileId, 15, "thank_sent", job.id, "Sent a thank you");
+    await awardPoints(authorizedTechnicianId, 80, "thank_received", job.id, "Received a thank you");
+    await awardPoints(authorizedTechnicianId, 20, "job_completed", job.id, "Completed a job");
     if (body.tipAmount && body.tipAmount > 0) {
-      await awardPoints(body.technicianId, 50, "tip_received", body.jobId, "Received a tip");
+      await awardPoints(authorizedTechnicianId, 50, "tip_received", job.id, "Received a tip");
     }
 
     return res.status(201).json(formatThank(thankMessage));
@@ -84,7 +124,6 @@ router.get("/thanks/recent", async (req, res) => {
 });
 
 async function awardPoints(userId: number, amount: number, type: string, jobId: number, description: string) {
-  // Upsert points balance
   await db
     .insert(pointsTable)
     .values({ userId, balance: amount })
@@ -93,7 +132,6 @@ async function awardPoints(userId: number, amount: number, type: string, jobId: 
       set: { balance: sql`${pointsTable.balance} + ${amount}`, updatedAt: new Date() },
     });
 
-  // Record transaction
   await db.insert(pointTransactionsTable).values({
     userId,
     amount,

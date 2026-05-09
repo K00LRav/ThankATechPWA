@@ -26,16 +26,25 @@ A gratitude-first marketplace where customers thank technicians with heartfelt m
 ## Where things live
 
 - `lib/api-spec/openapi.yaml` — source of truth for all API contracts
-- `lib/db/src/schema/` — Drizzle table definitions (profiles, technicians, jobs, thanks, points)
+- `lib/db/src/schema/` — Drizzle table definitions (auth, profiles, technicians, jobs, thanks, points)
 - `artifacts/api-server/src/routes/` — Express route handlers
-- `artifacts/thankatech/src/pages/` — React pages (home, browse, technician-profile, customer-dashboard, technician-dashboard, thank-flow, login)
+- `artifacts/thankatech/src/pages/` — React pages (home, browse, technician-profile, customer-dashboard, technician-dashboard, thank-flow, login + onboard)
+- `artifacts/thankatech/src/hooks/useMyProfile.ts` — fetches the authenticated user's profile (profileId, userType, technicianId)
+- `lib/replit-auth-web/` — shared auth hook (`useAuth`) for browser OIDC login/logout state
+- `artifacts/api-server/src/lib/auth.ts` — session management (create/get/delete/refresh)
+- `artifacts/api-server/src/middlewares/authMiddleware.ts` — loads user from session on every request
+- `artifacts/api-server/src/routes/auth.ts` — OIDC login/callback/logout/mobile-token-exchange routes
+- `artifacts/api-server/src/routes/profile.ts` — GET/POST /profile/me (user's own profile)
 - `artifacts/thankatech/src/components/layout/Navbar.tsx` — shared navbar
 
 ## Architecture decisions
 
 - OpenAPI-first: all endpoints defined in `openapi.yaml`, codegen produces typed React Query hooks and Zod schemas
+- Auth: Replit OIDC (cookie-based for web). Sessions stored in `sessions` table; users in `users` table
+- Profile link: `profiles.user_id` and `technicians.user_id` (varchar) map auth users to their app profile
+- New user onboarding: after first login, `/onboard` page lets them pick customer or technician role
+- Dashboards use `GET /api/profile/me` to get the authenticated user's profileId/technicianId
 - ThankYou Points awarded automatically when thank messages are submitted (+15 customer, +80 tech for received, +20 job, +50 tip)
-- Demo user IDs hardcoded (customerId=1, technicianId=2) until auth is added
 - Brand: Primary #FF6B35 (warm orange), Secondary #166534 (deep green), off-white warm neutral backgrounds
 
 ## Product
@@ -46,7 +55,8 @@ A gratitude-first marketplace where customers thank technicians with heartfelt m
 - **Customer Dashboard** — Jobs list by status, ThankYou Points balance
 - **Technician Dashboard** — Incoming jobs, earnings, points, Wall of Thanks preview
 - **Thank Flow** — 3-step animated flow: write message → add optional tip → celebration screen
-- **Login/Register** — Auth UI (customer vs technician selection)
+- **Login** — Replit OIDC sign-in button; no email/password forms
+- **Onboard** — Role selection (customer vs technician) shown to new users after first login
 
 ## User preferences
 
@@ -57,6 +67,9 @@ _Populate as needed._
 - Always run codegen after changing `openapi.yaml`: `pnpm --filter @workspace/api-spec run codegen`
 - `thanks/recent` route must be registered BEFORE `thanks/:id` in Express to avoid route conflicts
 - Technician ID 1 was deleted during seeding (duplicate); IDs start at 2
+- Auth uses Replit OIDC — `REPL_ID` env var is used as the client_id (auto-set in Replit environment)
+- Do NOT use generated API client hooks for auth operations — use `useAuth()` from `@workspace/replit-auth-web`
+- Auth tables (`sessions`, `users`) are mandatory — do not drop them
 
 ## Pointers
 

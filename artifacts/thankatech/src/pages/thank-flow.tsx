@@ -42,7 +42,6 @@ export function ThankFlow() {
         jobId: job.id,
         customerId: job.customerId,
         technicianId: job.technicianId,
-        technicianName: techName,
         message,
         tipAmount: finalTip,
       },

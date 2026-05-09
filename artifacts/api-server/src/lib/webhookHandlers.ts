@@ -64,10 +64,21 @@ export class WebhookHandlers {
         const technicianId = rawTechnicianId ? parseInt(rawTechnicianId, 10) : NaN;
         const rawJobId = pi.metadata?.jobId;
         const jobId = rawJobId ? parseInt(rawJobId, 10) : NaN;
+        const tipAmount = parseFloat(pi.metadata?.tipAmount ?? '0');
         if (isNaN(technicianId) || isNaN(jobId)) {
           logger.warn({ piId: pi.id, thankMessageId }, 'payment_intent.succeeded: missing technicianId or jobId in metadata');
           break;
         }
+
+        // Funds are routed to the technician's connected Stripe account automatically via
+        // the `transfer_data.destination` set on the PaymentIntent at creation time.
+        // Stripe transfers (tipAmount - application_fee) = tipAmount * 0.91 to the technician.
+        // No explicit Stripe Transfer object needs to be created here — destination charges
+        // handle this atomically. Creating a separate Transfer would double-pay the technician.
+        logger.info(
+          { piId: pi.id, thankMessageId, technicianId, tipAmount, netToTech: Math.round(tipAmount * 0.91 * 100) / 100 },
+          'payment_intent.succeeded: Stripe destination charge — %.2f transferred to technician connected account (91% of tip)',
+        );
 
         await applyPaymentSuccess({
           thankMessageId,

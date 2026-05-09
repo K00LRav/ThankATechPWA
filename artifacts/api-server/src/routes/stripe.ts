@@ -200,6 +200,15 @@ router.post("/stripe/payment-intent", async (req, res) => {
     const platformFeePercent = 0.09;
     const applicationFeeAmount = Math.round(amountCents * platformFeePercent);
 
+    // Critical payout path: transfer_data.destination MUST always be set so Stripe
+    // automatically routes net funds (~91%) to the technician's connected account on charge success.
+    // This is validated above (stripeAccountId + stripeOnboardingComplete), but we guard
+    // defensively here too — a missing destination would charge the customer without paying out.
+    if (!tech.stripeAccountId) {
+      req.log.error({ technicianId, thankMessageId }, "stripeAccountId is null at PaymentIntent creation — aborting to prevent loss of funds");
+      return res.status(500).json({ error: "Technician payout account is not configured" });
+    }
+
     const paymentIntentParams: Parameters<typeof stripe.paymentIntents.create>[0] = {
       amount: amountCents,
       currency: "usd",
@@ -212,6 +221,9 @@ router.post("/stripe/payment-intent", async (req, res) => {
         // tipAmount in metadata mirrors the DB value — used by webhook for earnings credit
         tipAmount: String(tipAmount),
       },
+      // application_fee_amount: platform keeps 9% of the tip
+      // transfer_data.destination: Stripe atomically transfers the remaining 91% to the
+      // technician's connected account when the charge succeeds — no separate Transfer needed.
       application_fee_amount: applicationFeeAmount,
       transfer_data: { destination: tech.stripeAccountId },
     };
@@ -296,6 +308,36 @@ router.post("/stripe/payment-cancel", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error cancelling payment intent");
     return res.status(500).json({ error: "Failed to cancel payment intent" });
+  }
+});
+
+router.get("/stripe/connect/dashboard-link", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const technicianId = await getTechnicianIdForUser(req.user.id);
+    if (!technicianId) {
+      return res.status(404).json({ error: "Technician profile not found" });
+    }
+
+    const [tech] = await db
+      .select()
+      .from(techniciansTable)
+      .where(eq(techniciansTable.id, technicianId));
+
+    if (!tech?.stripeAccountId || !tech.stripeOnboardingComplete) {
+      return res.status(402).json({ error: "Stripe onboarding is not complete" });
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const loginLink = await stripe.accounts.createLoginLink(tech.stripeAccountId);
+
+    return res.json({ url: loginLink.url });
+  } catch (err) {
+    req.log.error({ err }, "Error creating Stripe Express dashboard link");
+    return res.status(500).json({ error: "Failed to create dashboard link" });
   }
 });
 

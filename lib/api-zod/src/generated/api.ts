@@ -421,6 +421,13 @@ export const CreateStripePaymentIntentResponse = zod.object({
 });
 
 /**
+ * @summary Get a Stripe Express dashboard login link for the authenticated technician
+ */
+export const GetStripeConnectDashboardLinkResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
  * @summary Record that a Stripe payment was completed
  */
 export const RecordStripePaymentCompleteBody = zod.object({

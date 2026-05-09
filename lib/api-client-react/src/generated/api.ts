@@ -40,6 +40,7 @@ import type {
   PushTokenResult,
   StripeConfig,
   StripeConnectStatus,
+  StripeDashboardLink,
   StripeOnboardingUrl,
   StripePaymentCompleteInput,
   StripePaymentCompleteResult,
@@ -2278,6 +2279,86 @@ export const useCreateStripePaymentIntent = <
 > => {
   return useMutation(getCreateStripePaymentIntentMutationOptions(options));
 };
+
+/**
+ * @summary Get a Stripe Express dashboard login link for the authenticated technician
+ */
+export const getGetStripeConnectDashboardLinkUrl = () => {
+  return `/api/stripe/connect/dashboard-link`;
+};
+
+export const getStripeConnectDashboardLink = async (
+  options?: RequestInit,
+): Promise<StripeDashboardLink> => {
+  return customFetch<StripeDashboardLink>(
+    getGetStripeConnectDashboardLinkUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStripeConnectDashboardLinkQueryKey = () => {
+  return [`/api/stripe/connect/dashboard-link`] as const;
+};
+
+export const getGetStripeConnectDashboardLinkQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStripeConnectDashboardLink>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectDashboardLink>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStripeConnectDashboardLinkQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStripeConnectDashboardLink>>
+  > = ({ signal }) =>
+    getStripeConnectDashboardLink({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectDashboardLink>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStripeConnectDashboardLinkQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStripeConnectDashboardLink>>
+>;
+export type GetStripeConnectDashboardLinkQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a Stripe Express dashboard login link for the authenticated technician
+ */
+
+export function useGetStripeConnectDashboardLink<
+  TData = Awaited<ReturnType<typeof getStripeConnectDashboardLink>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeConnectDashboardLink>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStripeConnectDashboardLinkQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Record that a Stripe payment was completed

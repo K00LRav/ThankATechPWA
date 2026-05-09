@@ -208,6 +208,10 @@ export interface StripeConnectStatus {
   accountId?: string | null;
 }
 
+export interface StripeDashboardLink {
+  url: string;
+}
+
 export interface StripePaymentIntentInput {
   thankMessageId: number;
   amount: number;

@@ -31,6 +31,7 @@ export * from "./pushTokenInput";
 export * from "./pushTokenResult";
 export * from "./stripeConfig";
 export * from "./stripeConnectStatus";
+export * from "./stripeDashboardLink";
 export * from "./stripeOnboardingUrl";
 export * from "./stripePaymentCompleteInput";
 export * from "./stripePaymentCompleteResult";

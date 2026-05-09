@@ -1,6 +1,6 @@
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -27,6 +27,15 @@ export function TechnicianDashboard() {
       enabled: !!technicianId,
       queryKey: getGetStripeConnectStatusQueryKey(),
       retry: false,
+    },
+  });
+
+  const { data: dashboardLink, isLoading: isDashboardLinkLoading, refetch: refetchDashboardLink } = useGetStripeConnectDashboardLink({
+    query: {
+      enabled: !!(technicianId && stripeStatus?.connected && stripeStatus?.onboardingComplete),
+      queryKey: getGetStripeConnectDashboardLinkQueryKey(),
+      retry: false,
+      staleTime: 60_000,
     },
   });
 
@@ -123,6 +132,48 @@ export function TechnicianDashboard() {
             <StatCard icon={<DollarSign className="text-green-600" />} title="Tips Earned" value={`$${stats?.totalTips || 0}`} />
             <StatCard icon={<TrendingUp className="text-blue-500" />} title="Avg Tip" value={`$${stats?.avgTipAmount || 0}`} />
             <StatCard icon={<CheckCircle2 className="text-secondary" />} title="Jobs Completed" value={stats?.totalJobs || 0} />
+          </div>
+        )}
+
+        {stripeConnected && (
+          <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-secondary/10 rounded-full flex-shrink-0">
+                <Landmark className="w-5 h-5 text-secondary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Payouts</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tips you receive are transferred directly to your bank account (91% of each tip after the platform fee).
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 bg-card rounded-xl border px-4 py-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Total Earned</p>
+                <p className="text-2xl font-bold text-secondary">${stats?.totalTips ?? "0"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Gross tips received</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 self-start sm:self-auto flex-shrink-0"
+                disabled={isDashboardLinkLoading}
+                onClick={() => {
+                  if (dashboardLink?.url) {
+                    window.open(dashboardLink.url, "_blank", "noopener,noreferrer");
+                  } else {
+                    refetchDashboardLink();
+                  }
+                }}
+              >
+                {isDashboardLinkLoading ? "Loading..." : dashboardLink ? "View Stripe Dashboard" : "Open Dashboard"}
+                <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Your Stripe Express dashboard shows your full payout history, upcoming transfers, and bank account details.
+            </p>
           </div>
         )}
 

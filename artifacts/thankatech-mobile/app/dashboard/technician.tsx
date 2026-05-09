@@ -22,6 +22,7 @@ import {
   useGetTechnicianWallOfThanks,
   useGetTechnicianStats,
   useRegisterPushToken,
+  useGetPointTransactions,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
@@ -134,6 +135,7 @@ export default function TechnicianDashboard() {
   const { data: points, refetch: refetchPoints } = useGetPoints(profile?.profileId ?? 0);
   const { data: wall } = useGetTechnicianWallOfThanks(techId > 0 ? techId : 0);
   const { data: stats } = useGetTechnicianStats(techId > 0 ? techId : 0);
+  const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(profile?.profileId ?? 0);
 
   const { mutate: registerToken } = useRegisterPushToken();
 
@@ -154,7 +156,7 @@ export default function TechnicianDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchJobs(), refetchPoints()]);
+    await Promise.all([refetchJobs(), refetchPoints(), refetchTransactions()]);
     setRefreshing(false);
   };
 
@@ -162,6 +164,18 @@ export default function TechnicianDashboard() {
 
   const pendingJobs = jobs?.filter((j) => j.status === "pending" || j.status === "in_progress") ?? [];
   const recentWall = wall?.slice(0, 3) ?? [];
+  const recentTransactions = transactions
+    ? [...transactions]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+    : [];
+
+  const TX_ICON: Record<string, { name: string; colorKey: "primary" | "secondary" }> = {
+    thank_sent: { name: "heart-outline", colorKey: "primary" },
+    thank_received: { name: "heart", colorKey: "primary" },
+    job_completed: { name: "briefcase-outline", colorKey: "secondary" },
+    tip_received: { name: "cash-outline", colorKey: "secondary" },
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -285,6 +299,54 @@ export default function TechnicianDashboard() {
             <ThankPreviewCard key={item.id} item={item} />
           ))
         )}
+
+        {/* Points History */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+            Points History
+          </Text>
+        </View>
+
+        {txLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+        ) : recentTransactions.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="star-outline" size={28} color={colors.mutedForeground} />
+            <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              No points earned yet
+            </Text>
+          </View>
+        ) : (
+          recentTransactions.map((tx) => {
+            const meta = TX_ICON[tx.type] ?? { name: "star-outline", colorKey: "primary" as const };
+            const iconColor = meta.colorKey === "secondary" ? colors.secondary : colors.primary;
+            const date = new Date(tx.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            return (
+              <View
+                key={tx.id}
+                style={[styles.txCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <View style={[styles.txIconWrap, { backgroundColor: iconColor + "15" }]}>
+                  <Ionicons name={meta.name as React.ComponentProps<typeof Ionicons>["name"]} size={18} color={iconColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.txDescription, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
+                    {tx.description || tx.type.replace(/_/g, " ")}
+                  </Text>
+                  <Text style={[styles.txDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    {date}
+                  </Text>
+                </View>
+                <Text style={[styles.txAmount, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                  +{tx.amount} pts
+                </Text>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
@@ -357,6 +419,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyCardText: { fontSize: 14 },
+  txCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  txIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txDescription: { fontSize: 14 },
+  txDate: { fontSize: 12, marginTop: 2 },
+  txAmount: { fontSize: 15 },
   thankPreviewCard: {
     borderRadius: 14,
     borderWidth: 1,

@@ -12,10 +12,24 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useListJobs, useGetMyProfile, useGetPoints } from "@workspace/api-client-react";
+import {
+  useListJobs,
+  useGetMyProfile,
+  useGetPoints,
+  useGetPointTransactions,
+} from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
 const STATUS_FILTERS = ["all", "pending", "in_progress", "completed"];
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
+
+const TRANSACTION_ICON: Record<string, { name: IoniconsName; color: "primary" | "secondary" }> = {
+  thank_sent: { name: "heart-outline", color: "primary" },
+  thank_received: { name: "heart", color: "primary" },
+  job_completed: { name: "briefcase-outline", color: "secondary" },
+  tip_received: { name: "cash-outline", color: "secondary" },
+};
 
 function StatusBadge({ status }: { status: string }) {
   const colors = useColors();
@@ -80,6 +94,77 @@ function JobCard({ item, canThank }: { item: {
   );
 }
 
+function PointsHistorySection({
+  transactions,
+  isLoading,
+}: {
+  transactions?: { id: number; type: string; amount: number; description?: string; createdAt: string }[];
+  isLoading: boolean;
+}) {
+  const colors = useColors();
+
+  const sorted = transactions
+    ? [...transactions].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ).slice(0, 10)
+    : [];
+
+  return (
+    <View style={styles.historySection}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+        Points History
+      </Text>
+
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+      ) : sorted.length === 0 ? (
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="star-outline" size={24} color={colors.mutedForeground} />
+          <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+            No points earned yet
+          </Text>
+        </View>
+      ) : (
+        sorted.map((tx) => {
+          const meta = TRANSACTION_ICON[tx.type] ?? { name: "star-outline" as const, color: "primary" as const };
+          const iconColor = meta.color === "secondary" ? colors.secondary : colors.primary;
+          const date = new Date(tx.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+          return (
+            <View
+              key={tx.id}
+              style={[styles.txCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={[styles.txIconWrap, { backgroundColor: iconColor + "15" }]}>
+                <Ionicons name={meta.name} size={18} color={iconColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.txDescription, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
+                  {tx.description || tx.type.replace(/_/g, " ")}
+                </Text>
+                <Text style={[styles.txDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                  {date}
+                </Text>
+              </View>
+              <Text style={[styles.txAmount, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                +{tx.amount} pts
+              </Text>
+            </View>
+          );
+        })
+      )}
+
+      <View style={styles.jobsSeparator}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+          My Jobs
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function CustomerDashboard() {
   const colors = useColors();
   const router = useRouter();
@@ -99,10 +184,13 @@ export default function CustomerDashboard() {
 
   const { data: jobs, isLoading, refetch } = useListJobs(jobsParams);
   const { data: points } = useGetPoints(profile?.profileId ?? 0);
+  const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(
+    profile?.profileId ?? 0
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchTransactions()]);
     setRefreshing(false);
   };
 
@@ -165,7 +253,7 @@ export default function CustomerDashboard() {
         style={{ flexGrow: 0 }}
       />
 
-      {/* Jobs list */}
+      {/* Jobs list + Points History header */}
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} size="large" />
@@ -180,6 +268,11 @@ export default function CustomerDashboard() {
               canThank={item.status === "completed"}
             />
           )}
+          ListHeaderComponent={
+            profile?.profileId ? (
+              <PointsHistorySection transactions={transactions} isLoading={txLoading} />
+            ) : null
+          }
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: isWeb ? 34 + 84 : 40 },
@@ -277,4 +370,35 @@ const styles = StyleSheet.create({
   thankBtnText: { color: "#fff", fontSize: 14 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+  historySection: { marginBottom: 4 },
+  sectionTitle: { fontSize: 18, marginBottom: 12 },
+  emptyCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  emptyCardText: { fontSize: 14 },
+  txCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  txIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txDescription: { fontSize: 14 },
+  txDate: { fontSize: 12, marginTop: 2 },
+  txAmount: { fontSize: 15 },
+  jobsSeparator: { marginTop: 8, marginBottom: 4 },
 });

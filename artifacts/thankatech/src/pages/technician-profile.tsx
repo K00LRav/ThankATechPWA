@@ -1,15 +1,31 @@
+import { useState } from "react";
 import { useParams, Link } from "wouter";
+import { toast } from "sonner";
 import { 
   useGetTechnician, 
   useGetTechnicianWallOfThanks, 
   useGetTechnicianStats,
+  useCreateJob,
   getGetTechnicianQueryKey,
   getGetTechnicianWallOfThanksQueryKey,
   getGetTechnicianStatsQueryKey
 } from "@workspace/api-client-react";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, MapPin, Wrench, Award, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function TechnicianProfile() {
@@ -19,6 +35,50 @@ export function TechnicianProfile() {
   const { data: tech, isLoading: isTechLoading } = useGetTechnician(id, { query: { enabled: !!id, queryKey: getGetTechnicianQueryKey(id) }});
   const { data: stats, isLoading: isStatsLoading } = useGetTechnicianStats(id, { query: { enabled: !!id, queryKey: getGetTechnicianStatsQueryKey(id) }});
   const { data: thanks, isLoading: isThanksLoading } = useGetTechnicianWallOfThanks(id, { query: { enabled: !!id, queryKey: getGetTechnicianWallOfThanksQueryKey(id) }});
+  const { data: profileEnvelope, isLoading: isProfileLoading } = useMyProfile();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { mutate: createJob, isPending } = useCreateJob({
+    mutation: {
+      onSuccess: () => {
+        toast.success("Service request sent!", {
+          description: "Your request has been sent to the technician.",
+        });
+        setDialogOpen(false);
+        setTitle("");
+        setDescription("");
+        setAddress("");
+      },
+      onError: () => {
+        toast.error("Failed to send request", {
+          description: "Something went wrong. Please try again.",
+        });
+      },
+    },
+  });
+
+  const profile = profileEnvelope?.profile;
+  const isCustomer = profile?.userType === "customer";
+  const profileSettled = !isProfileLoading;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile?.profileId || !id || !tech) return;
+    createJob({
+      data: {
+        customerId: profile.profileId,
+        technicianId: id,
+        technicianName: tech.fullName,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        address: address.trim() || undefined,
+      },
+    });
+  }
 
   if (isTechLoading || isStatsLoading || isThanksLoading) {
     return <div className="p-8 space-y-8"><Skeleton className="h-48 w-full rounded-xl" /><Skeleton className="h-96 w-full rounded-xl" /></div>;
@@ -47,6 +107,24 @@ export function TechnicianProfile() {
                 <span className="flex items-center gap-1.5 text-primary"><Heart size={16} fill="currentColor"/> {stats?.totalThanks || 0} Thanks</span>
                 {tech.hourlyRate && <span className="flex items-center gap-1.5"><DollarSign size={16}/> ${tech.hourlyRate}/hr</span>}
               </div>
+              {isCustomer && (
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  className="mt-2 gap-2"
+                  size="lg"
+                >
+                  <CalendarPlus size={18} />
+                  Request Service
+                </Button>
+              )}
+              {profileSettled && !profile && (
+                <Link href="/login">
+                  <Button variant="outline" size="lg" className="mt-2 gap-2">
+                    <CalendarPlus size={18} />
+                    Sign in to Request Service
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -123,6 +201,59 @@ export function TechnicianProfile() {
           </div>
         </div>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">Request Service</DialogTitle>
+            <DialogDescription>
+              Send a service request to {tech.fullName}. They'll be notified and can confirm your booking.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="title">What do you need help with? *</Label>
+              <Input
+                id="title"
+                placeholder="e.g. Fix leaking kitchen faucet"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                required
+                maxLength={120}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Additional details</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe the issue or any other details..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Service address</Label>
+              <Input
+                id="address"
+                placeholder="e.g. 123 Main St, Springfield"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending || !title.trim()}>
+                {isPending ? "Sending..." : "Send Request"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

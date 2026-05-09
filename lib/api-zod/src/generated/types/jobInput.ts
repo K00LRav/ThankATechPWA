@@ -12,4 +12,5 @@ export interface JobInput {
   title: string;
   description?: string;
   address?: string;
+  scheduledDate?: string;
 }

@@ -57,6 +57,8 @@ export interface Job {
   description?: string | null;
   /** @nullable */
   address?: string | null;
+  /** @nullable */
+  scheduledDate?: string | null;
   status: string;
   createdAt: string;
   /** @nullable */
@@ -69,6 +71,7 @@ export interface JobInput {
   title: string;
   description?: string;
   address?: string;
+  scheduledDate?: string;
 }
 
 export interface JobUpdate {

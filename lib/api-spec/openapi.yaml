@@ -713,6 +713,8 @@ components:
           type: ["string", "null"]
         address:
           type: ["string", "null"]
+        scheduledDate:
+          type: ["string", "null"]
         status:
           type: string
         createdAt:
@@ -733,6 +735,8 @@ components:
         description:
           type: string
         address:
+          type: string
+        scheduledDate:
           type: string
 
     JobUpdate:

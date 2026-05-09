@@ -89,14 +89,20 @@ router.post("/jobs", async (req, res) => {
       .from(profilesTable)
       .where(eq(profilesTable.id, profileId));
 
+    const [techProfile] = await db
+      .select({ fullName: techniciansTable.fullName })
+      .from(techniciansTable)
+      .where(eq(techniciansTable.id, body.technicianId));
+
     const [job] = await db.insert(jobsTable).values({
       customerId: profileId,
       customerName: profile?.fullName ?? body.customerName ?? "",
       technicianId: body.technicianId,
-      technicianName: body.technicianName ?? "",
+      technicianName: techProfile?.fullName ?? body.technicianName ?? "",
       title: body.title,
       description: body.description ?? null,
       address: body.address ?? null,
+      scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
       status: "pending",
     }).returning();
     return res.status(201).json(formatJob(job));
@@ -174,6 +180,7 @@ function formatJob(j: typeof jobsTable.$inferSelect) {
     title: j.title,
     description: j.description,
     address: j.address,
+    scheduledDate: j.scheduledDate?.toISOString() ?? null,
     status: j.status,
     createdAt: j.createdAt?.toISOString(),
     completedAt: j.completedAt?.toISOString() ?? null,

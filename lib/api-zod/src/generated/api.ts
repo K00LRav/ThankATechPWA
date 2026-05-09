@@ -133,6 +133,7 @@ export const ListJobsResponseItem = zod.object({
   title: zod.string(),
   description: zod.string().nullish(),
   address: zod.string().nullish(),
+  scheduledDate: zod.string().nullish(),
   status: zod.string(),
   createdAt: zod.string(),
   completedAt: zod.string().nullish(),
@@ -148,6 +149,7 @@ export const CreateJobBody = zod.object({
   title: zod.string(),
   description: zod.string().optional(),
   address: zod.string().optional(),
+  scheduledDate: zod.string().optional(),
 });
 
 /**
@@ -166,6 +168,7 @@ export const GetJobResponse = zod.object({
   title: zod.string(),
   description: zod.string().nullish(),
   address: zod.string().nullish(),
+  scheduledDate: zod.string().nullish(),
   status: zod.string(),
   createdAt: zod.string(),
   completedAt: zod.string().nullish(),
@@ -192,6 +195,7 @@ export const UpdateJobResponse = zod.object({
   title: zod.string(),
   description: zod.string().nullish(),
   address: zod.string().nullish(),
+  scheduledDate: zod.string().nullish(),
   status: zod.string(),
   createdAt: zod.string(),
   completedAt: zod.string().nullish(),

@@ -11,6 +11,7 @@ export const jobsTable = pgTable("jobs", {
   title: text("title").notNull(),
   description: text("description"),
   address: text("address"),
+  scheduledDate: timestamp("scheduled_date", { withTimezone: true }),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),

@@ -814,7 +814,7 @@ components:
 
     ThankMessage:
       type: object
-      required: [id, jobId, customerId, technicianId, message, tipAmount, createdAt]
+      required: [id, jobId, customerId, technicianId, message, tipAmount, paymentStatus, createdAt]
       properties:
         id:
           type: integer
@@ -834,6 +834,9 @@ components:
           type: string
         tipAmount:
           type: number
+        paymentStatus:
+          type: string
+          description: Payment status of the tip (none, pending, succeeded, failed)
         photoUrl:
           type: ["string", "null"]
         createdAt:

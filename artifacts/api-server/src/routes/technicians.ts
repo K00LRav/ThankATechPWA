@@ -148,6 +148,7 @@ function formatThank(t: typeof thankMessagesTable.$inferSelect) {
     technicianAvatar: t.technicianAvatar,
     message: t.message,
     tipAmount: parseFloat(t.tipAmount ?? "0"),
+    paymentStatus: t.paymentStatus ?? "none",
     photoUrl: t.photoUrl,
     createdAt: t.createdAt?.toISOString(),
   };

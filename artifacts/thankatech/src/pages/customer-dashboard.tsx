@@ -1,8 +1,8 @@
 import { Link } from "wouter";
-import { useListJobs, useGetPoints, getListJobsQueryKey, getGetPointsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useListThankMessages, useGetPoints, getListJobsQueryKey, getListThankMessagesQueryKey, getGetPointsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Gift, Clock } from "lucide-react";
+import { Heart, Gift, Clock, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -17,9 +17,20 @@ export function CustomerDashboard() {
     { query: { enabled: !!profileId, queryKey: getListJobsQueryKey({}) } }
   );
 
+  const { data: thankMessages } = useListThankMessages(
+    { customerId: profileId },
+    { query: { enabled: !!profileId, queryKey: getListThankMessagesQueryKey({ customerId: profileId }) } }
+  );
+
   const { data: points, isLoading: isPointsLoading } = useGetPoints(profileId!, {
     query: { enabled: !!profileId, queryKey: getGetPointsQueryKey(profileId!) }
   });
+
+  const failedPaymentJobIds = new Set(
+    (thankMessages ?? [])
+      .filter(t => t.paymentStatus === "failed")
+      .map(t => t.jobId)
+  );
 
   if (!profileId) {
     return (
@@ -65,44 +76,59 @@ export function CustomerDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {jobs?.map(job => (
-                <Card key={job.id} className="overflow-hidden transition-all hover:shadow-md">
-                  <CardContent className="p-0">
-                    <div className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-bold text-lg">{job.title}</h3>
-                          <Badge variant={job.status === 'completed' ? 'default' : 'secondary'} className={
-                            job.status === 'completed' ? 'bg-green-500 hover:bg-green-600' : ''
-                          }>
-                            {job.status}
-                          </Badge>
+              {jobs?.map(job => {
+                const hasFailedPayment = failedPaymentJobIds.has(job.id);
+                return (
+                  <Card key={job.id} className="overflow-hidden transition-all hover:shadow-md">
+                    <CardContent className="p-0">
+                      <div className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="font-bold text-lg">{job.title}</h3>
+                            <Badge variant={job.status === 'completed' ? 'default' : 'secondary'} className={
+                              job.status === 'completed' ? 'bg-green-500 hover:bg-green-600' : ''
+                            }>
+                              {job.status}
+                            </Badge>
+                            {hasFailedPayment && (
+                              <Badge variant="destructive" className="flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Payment failed
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground">{job.description}</p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium pt-2">
+                            <span className="flex items-center gap-1.5"><WrenchIcon size={14} /> {job.technicianName}</span>
+                            <span className="flex items-center gap-1.5"><Clock size={14} /> {new Date(job.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          {hasFailedPayment && (
+                            <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                              Your tip payment didn't go through. Retry below or contact support.
+                            </p>
+                          )}
                         </div>
-                        <p className="text-muted-foreground">{job.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium pt-2">
-                          <span className="flex items-center gap-1.5"><WrenchIcon size={14} /> {job.technicianName}</span>
-                          <span className="flex items-center gap-1.5"><Clock size={14} /> {new Date(job.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
 
-                      <div className="w-full md:w-auto">
-                        {job.status === 'completed' ? (
-                          <Button asChild className="w-full md:w-auto rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm" size="lg">
-                            <Link href={`/thank/${job.id}`}>
-                              <Heart className="mr-2 h-4 w-4" fill="currentColor" />
-                              Say Thank You
-                            </Link>
-                          </Button>
-                        ) : (
-                          <Button disabled variant="outline" className="w-full md:w-auto rounded-full">
-                            Waiting to complete
-                          </Button>
-                        )}
+                        <div className="w-full md:w-auto">
+                          {job.status === 'completed' ? (
+                            <Button asChild className="w-full md:w-auto rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm" size="lg">
+                              <Link href={`/thank/${job.id}`}>
+                                <Heart className="mr-2 h-4 w-4" fill="currentColor" />
+                                {hasFailedPayment ? "Retry Thank You" : "Say Thank You"}
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button disabled variant="outline" className="w-full md:w-auto rounded-full">
+                              Waiting to complete
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
               {jobs?.length === 0 && (
                 <div className="text-center py-16 bg-card rounded-xl border border-dashed">

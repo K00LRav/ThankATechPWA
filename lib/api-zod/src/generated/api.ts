@@ -92,6 +92,9 @@ export const GetTechnicianWallOfThanksResponseItem = zod.object({
   technicianAvatar: zod.string().nullish(),
   message: zod.string(),
   tipAmount: zod.number(),
+  paymentStatus: zod
+    .string()
+    .describe("Payment status of the tip (none, pending, succeeded, failed)"),
   photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
@@ -219,6 +222,9 @@ export const ListThankMessagesResponseItem = zod.object({
   technicianAvatar: zod.string().nullish(),
   message: zod.string(),
   tipAmount: zod.number(),
+  paymentStatus: zod
+    .string()
+    .describe("Payment status of the tip (none, pending, succeeded, failed)"),
   photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
@@ -251,6 +257,9 @@ export const GetRecentThanksResponseItem = zod.object({
   technicianAvatar: zod.string().nullish(),
   message: zod.string(),
   tipAmount: zod.number(),
+  paymentStatus: zod
+    .string()
+    .describe("Payment status of the tip (none, pending, succeeded, failed)"),
   photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });

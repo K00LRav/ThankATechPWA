@@ -90,6 +90,8 @@ export interface ThankMessage {
   technicianAvatar?: string | null;
   message: string;
   tipAmount: number;
+  /** Payment status of the tip (none, pending, succeeded, failed) */
+  paymentStatus: string;
   /** @nullable */
   photoUrl?: string | null;
   createdAt: string;

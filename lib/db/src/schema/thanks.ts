@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, varchar, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -16,7 +16,9 @@ export const thankMessagesTable = pgTable("thank_messages", {
   paymentStatus: varchar("payment_status").notNull().default("none"),
   photoUrl: text("photo_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  unique("thank_messages_job_id_customer_id_unique").on(table.jobId, table.customerId),
+]);
 
 export const insertThankMessageSchema = createInsertSchema(thankMessagesTable).omit({ id: true, createdAt: true });
 export type InsertThankMessage = z.infer<typeof insertThankMessageSchema>;

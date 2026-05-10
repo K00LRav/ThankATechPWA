@@ -80,20 +80,47 @@ router.post("/thanks", async (req, res) => {
       return;
     }
 
+    // Check if a thank you already exists for this job+customer combination.
+    const [existingThank] = await db
+      .select({ id: thankMessagesTable.id })
+      .from(thankMessagesTable)
+      .where(and(eq(thankMessagesTable.jobId, job.id), eq(thankMessagesTable.customerId, profileId)));
+    if (existingThank) {
+      res.status(409).json({ code: "THANK_ALREADY_EXISTS", error: "You have already sent a thank you for this job." });
+      return;
+    }
+
     // Use the job's authoritative technicianId — never trust body.technicianId.
     const authorizedTechnicianId = job.technicianId;
 
-    const [thankMessage] = await db.insert(thankMessagesTable).values({
-      jobId: job.id,
-      customerId: profileId,
-      customerName: body.customerName ?? "A customer",
-      technicianId: authorizedTechnicianId,
-      technicianName: body.technicianName ?? "",
-      technicianAvatar: body.technicianAvatar ?? null,
-      message: body.message,
-      tipAmount: (body.tipAmount ?? 0).toString(),
-      photoUrl: body.photoUrl ?? null,
-    }).returning();
+    let thankMessage: typeof thankMessagesTable.$inferSelect;
+    try {
+      const [inserted] = await db.insert(thankMessagesTable).values({
+        jobId: job.id,
+        customerId: profileId,
+        customerName: body.customerName ?? "A customer",
+        technicianId: authorizedTechnicianId,
+        technicianName: body.technicianName ?? "",
+        technicianAvatar: body.technicianAvatar ?? null,
+        message: body.message,
+        tipAmount: (body.tipAmount ?? 0).toString(),
+        photoUrl: body.photoUrl ?? null,
+      }).returning();
+      thankMessage = inserted;
+    } catch (insertErr: unknown) {
+      // Unique constraint violation (SQLSTATE 23505) — race condition where two
+      // concurrent requests passed the pre-check but only one won the insert.
+      if (
+        insertErr &&
+        typeof insertErr === "object" &&
+        "code" in insertErr &&
+        (insertErr as { code: string }).code === "23505"
+      ) {
+        res.status(409).json({ code: "THANK_ALREADY_EXISTS", error: "You have already sent a thank you for this job." });
+        return;
+      }
+      throw insertErr;
+    }
 
     await db
       .update(techniciansTable)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Platform,
   ScrollView,
+  Switch,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +24,7 @@ import {
   useGetTechnicianWallOfThanks,
   useGetTechnicianStats,
   useRegisterPushToken,
+  useUnregisterPushToken,
   useGetPointTransactions,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
@@ -137,22 +140,92 @@ export default function TechnicianDashboard() {
   const { data: stats } = useGetTechnicianStats(techId > 0 ? techId : 0);
   const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(profile?.profileId ?? 0);
 
-  const { mutate: registerToken } = useRegisterPushToken();
+  const { mutateAsync: registerTokenAsync } = useRegisterPushToken();
+  const { mutateAsync: unregisterTokenAsync } = useUnregisterPushToken();
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+
+  // "notifications_preference" stores "enabled" | "disabled".
+  // Absent = first-time (auto-register path).
+  // "disabled" = user explicitly opted out (never auto-register again until toggled back on).
+  const NOTIF_PREF_KEY = "notifications_preference";
+
+  // Initialise toggle state from the explicit preference key on mount.
+  useEffect(() => {
+    if (isWeb) return;
+    SecureStore.getItemAsync(NOTIF_PREF_KEY)
+      .then((pref) => {
+        // If preference is set, use it directly; otherwise derive from stored token.
+        if (pref !== null) {
+          setNotificationsEnabled(pref === "enabled");
+        } else {
+          SecureStore.getItemAsync("push_notification_token")
+            .then((token) => setNotificationsEnabled(!!token))
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [isWeb]);
 
   useEffect(() => {
     if (!profile || tokenRegisteredRef.current || isWeb) return;
     tokenRegisteredRef.current = true;
 
-    requestAndGetPushToken()
-      .then(async (token) => {
+    // Only auto-register when the user has never set a preference ("first time")
+    // or when they have explicitly opted in. Never auto-register for "disabled".
+    SecureStore.getItemAsync(NOTIF_PREF_KEY)
+      .then(async (pref) => {
+        if (pref === "disabled") return; // User opted out — respect their choice.
+
+        const token = await requestAndGetPushToken();
         if (token) {
-          registerToken({ data: { token } });
-          // Persist token so logout can unregister it cleanly.
+          await registerTokenAsync({ data: { token } });
           await SecureStore.setItemAsync("push_notification_token", token);
+          await SecureStore.setItemAsync(NOTIF_PREF_KEY, "enabled");
+          setNotificationsEnabled(true);
         }
       })
       .catch(() => {});
-  }, [profile, isWeb, registerToken]);
+  }, [profile, isWeb, registerTokenAsync]);
+
+  const handleNotificationToggle = useCallback(async (value: boolean) => {
+    if (isWeb || notificationLoading) return;
+    setNotificationLoading(true);
+    try {
+      if (!value) {
+        const stored = await SecureStore.getItemAsync("push_notification_token");
+        if (stored) {
+          // Await so we confirm server-side removal before updating UI.
+          await unregisterTokenAsync({ data: { token: stored } });
+          await SecureStore.deleteItemAsync("push_notification_token");
+        }
+        // Persist the disabled preference so auto-registration is suppressed.
+        await SecureStore.setItemAsync(NOTIF_PREF_KEY, "disabled");
+        setNotificationsEnabled(false);
+      } else {
+        const token = await requestAndGetPushToken();
+        if (token) {
+          await registerTokenAsync({ data: { token } });
+          await SecureStore.setItemAsync("push_notification_token", token);
+          await SecureStore.setItemAsync(NOTIF_PREF_KEY, "enabled");
+          setNotificationsEnabled(true);
+        }
+        // If OS permission was denied, leave toggle off — do not persist "enabled".
+      }
+    } catch {
+      // Leave state as-is on error so the toggle reflects actual state.
+      Alert.alert(
+        "Something went wrong",
+        value
+          ? "Couldn't enable notifications. Please try again."
+          : "Couldn't disable notifications. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [isWeb, notificationLoading, registerTokenAsync, unregisterTokenAsync]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -347,6 +420,48 @@ export default function TechnicianDashboard() {
             );
           })
         )}
+
+        {/* Notification Preferences */}
+        {!isWeb && (
+          <>
+            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+                Notifications
+              </Text>
+            </View>
+            <View style={[styles.prefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.prefRow}>
+                <View style={styles.prefIcon}>
+                  <Ionicons
+                    name={notificationsEnabled ? "notifications" : "notifications-off-outline"}
+                    size={20}
+                    color={notificationsEnabled ? colors.primary : colors.mutedForeground}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.prefLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    Push Notifications
+                  </Text>
+                  <Text style={[styles.prefDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    {notificationsEnabled
+                      ? "You'll be notified about new jobs and thanks"
+                      : "Enable to get alerts for new jobs and thanks"}
+                  </Text>
+                </View>
+                {notificationLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleNotificationToggle}
+                    trackColor={{ false: colors.border, true: colors.primary + "80" }}
+                    thumbColor={notificationsEnabled ? colors.primary : colors.mutedForeground}
+                  />
+                )}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -454,4 +569,24 @@ const styles = StyleSheet.create({
   customerName: { fontSize: 13 },
   tipAmount: { fontSize: 15 },
   thankPreviewMessage: { fontSize: 14, lineHeight: 20 },
+  prefCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+  },
+  prefRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  prefIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prefLabel: { fontSize: 15, marginBottom: 2 },
+  prefDesc: { fontSize: 13, lineHeight: 18 },
 });

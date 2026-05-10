@@ -69,7 +69,12 @@ function JobCard({ item, canThank, onCancel, cancelling }: { item: {
   });
 
   return (
-    <View style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <TouchableOpacity
+      style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      onPress={() => router.push({ pathname: "/job/[id]", params: { id: item.id } })}
+      activeOpacity={0.75}
+      testID={`job-card-${item.id}`}
+    >
       <View style={styles.jobHeader}>
         <Text style={[styles.jobTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
           {item.title}
@@ -83,41 +88,45 @@ function JobCard({ item, canThank, onCancel, cancelling }: { item: {
         </Text>
       </View>
       {canThank && (
-        <TouchableOpacity
-          style={[styles.thankBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push(`/thank/${item.id}`)}
-          testID={`thank-job-${item.id}`}
-        >
-          <Ionicons name="heart-outline" size={16} color="#fff" />
-          <Text style={[styles.thankBtnText, { fontFamily: "Inter_600SemiBold" }]}>Send Thanks</Text>
-        </TouchableOpacity>
+        <View onStartShouldSetResponder={() => true}>
+          <TouchableOpacity
+            style={[styles.thankBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.push(`/thank/${item.id}`)}
+            testID={`thank-job-${item.id}`}
+          >
+            <Ionicons name="heart-outline" size={16} color="#fff" />
+            <Text style={[styles.thankBtnText, { fontFamily: "Inter_600SemiBold" }]}>Send Thanks</Text>
+          </TouchableOpacity>
+        </View>
       )}
       {item.status === "pending" && onCancel && (
-        <TouchableOpacity
-          style={[
-            styles.cancelBtn,
-            { borderColor: cancelling ? colors.mutedForeground : colors.destructive, opacity: cancelling ? 0.6 : 1 },
-          ]}
-          onPress={() => !cancelling && onCancel(item.id)}
-          disabled={cancelling}
-          testID={`cancel-job-${item.id}`}
-        >
-          {cancelling ? (
-            <ActivityIndicator size="small" color={colors.mutedForeground} />
-          ) : (
-            <Ionicons name="close-circle-outline" size={16} color={colors.destructive} />
-          )}
-          <Text
+        <View onStartShouldSetResponder={() => true}>
+          <TouchableOpacity
             style={[
-              styles.cancelBtnText,
-              { color: cancelling ? colors.mutedForeground : colors.destructive, fontFamily: "Inter_600SemiBold" },
+              styles.cancelBtn,
+              { borderColor: cancelling ? colors.mutedForeground : colors.destructive, opacity: cancelling ? 0.6 : 1 },
             ]}
+            onPress={() => !cancelling && onCancel(item.id)}
+            disabled={cancelling}
+            testID={`cancel-job-${item.id}`}
           >
-            {cancelling ? "Cancelling…" : "Cancel Job"}
-          </Text>
-        </TouchableOpacity>
+            {cancelling ? (
+              <ActivityIndicator size="small" color={colors.mutedForeground} />
+            ) : (
+              <Ionicons name="close-circle-outline" size={16} color={colors.destructive} />
+            )}
+            <Text
+              style={[
+                styles.cancelBtnText,
+                { color: cancelling ? colors.mutedForeground : colors.destructive, fontFamily: "Inter_600SemiBold" },
+              ]}
+            >
+              {cancelling ? "Cancelling…" : "Cancel Job"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 

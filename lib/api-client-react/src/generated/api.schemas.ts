@@ -82,6 +82,7 @@ export const JobUpdateStatus = {
   confirmed: "confirmed",
   declined: "declined",
   completed: "completed",
+  cancelled: "cancelled",
 } as const;
 
 export interface JobUpdate {

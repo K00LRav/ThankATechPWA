@@ -49,6 +49,7 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "modal" }}
       />
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+      <Stack.Screen name="job" options={{ headerShown: false }} />
       <Stack.Screen
         name="onboard"
         options={{ headerShown: false, presentation: "modal" }}

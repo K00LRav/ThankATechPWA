@@ -826,7 +826,7 @@ components:
       properties:
         status:
           type: string
-          enum: [pending, confirmed, declined, completed]
+          enum: [pending, confirmed, declined, completed, cancelled]
         completedAt:
           type: string
 

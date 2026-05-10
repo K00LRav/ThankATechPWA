@@ -2,10 +2,44 @@ import { Link } from "wouter";
 import { useListJobs, useListThankMessages, useGetPoints, getListJobsQueryKey, getListThankMessagesQueryKey, getGetPointsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Gift, Clock, AlertCircle } from "lucide-react";
+import { Heart, Gift, Clock, AlertCircle, CheckCircle2, XCircle, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
+
+function JobStatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case "completed":
+      return (
+        <Badge className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" />
+          Completed
+        </Badge>
+      );
+    case "confirmed":
+      return (
+        <Badge className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" />
+          Confirmed
+        </Badge>
+      );
+    case "declined":
+      return (
+        <Badge variant="destructive" className="flex items-center gap-1">
+          <XCircle className="w-3 h-3" />
+          Declined
+        </Badge>
+      );
+    case "pending":
+    default:
+      return (
+        <Badge variant="secondary" className="flex items-center gap-1">
+          <Timer className="w-3 h-3" />
+          Pending
+        </Badge>
+      );
+  }
+}
 
 export function CustomerDashboard() {
   const { data: profileEnvelope } = useMyProfile();
@@ -85,11 +119,7 @@ export function CustomerDashboard() {
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-3 flex-wrap">
                             <h3 className="font-bold text-lg">{job.title}</h3>
-                            <Badge variant={job.status === 'completed' ? 'default' : 'secondary'} className={
-                              job.status === 'completed' ? 'bg-green-500 hover:bg-green-600' : ''
-                            }>
-                              {job.status}
-                            </Badge>
+                            <JobStatusBadge status={job.status} />
                             {hasFailedPayment && (
                               <Badge variant="destructive" className="flex items-center gap-1">
                                 <AlertCircle className="w-3 h-3" />
@@ -97,11 +127,25 @@ export function CustomerDashboard() {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-muted-foreground">{job.description}</p>
+                          {job.description && (
+                            <p className="text-muted-foreground">{job.description}</p>
+                          )}
                           <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium pt-2">
                             <span className="flex items-center gap-1.5"><WrenchIcon size={14} /> {job.technicianName}</span>
                             <span className="flex items-center gap-1.5"><Clock size={14} /> {new Date(job.createdAt).toLocaleDateString()}</span>
                           </div>
+                          {job.status === "declined" && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                              <XCircle className="w-3.5 h-3.5 flex-shrink-0 text-destructive" />
+                              The technician has declined this request. You can book another technician.
+                            </p>
+                          )}
+                          {job.status === "pending" && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                              <Timer className="w-3.5 h-3.5 flex-shrink-0" />
+                              Waiting for the technician to accept your request.
+                            </p>
+                          )}
                           {hasFailedPayment && (
                             <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -118,9 +162,15 @@ export function CustomerDashboard() {
                                 {hasFailedPayment ? "Retry Thank You" : "Say Thank You"}
                               </Link>
                             </Button>
+                          ) : job.status === 'declined' ? (
+                            <Button asChild variant="outline" className="w-full md:w-auto rounded-full">
+                              <Link href="/browse">
+                                Find Another Tech
+                              </Link>
+                            </Button>
                           ) : (
                             <Button disabled variant="outline" className="w-full md:w-auto rounded-full">
-                              Waiting to complete
+                              {job.status === 'confirmed' ? 'In progress' : 'Awaiting confirmation'}
                             </Button>
                           )}
                         </div>

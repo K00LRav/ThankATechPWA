@@ -185,7 +185,9 @@ export const UpdateJobParams = zod.object({
 });
 
 export const UpdateJobBody = zod.object({
-  status: zod.string().optional(),
+  status: zod
+    .enum(["pending", "confirmed", "declined", "completed"])
+    .optional(),
   completedAt: zod.string().optional(),
 });
 

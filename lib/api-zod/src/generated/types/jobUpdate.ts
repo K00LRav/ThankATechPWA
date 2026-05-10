@@ -5,8 +5,9 @@
  * ThankATech API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { JobUpdateStatus } from "./jobUpdateStatus";
 
 export interface JobUpdate {
-  status?: string;
+  status?: JobUpdateStatus;
   completedAt?: string;
 }

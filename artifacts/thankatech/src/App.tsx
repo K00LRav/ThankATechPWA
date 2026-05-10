@@ -24,15 +24,15 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/browse" component={Browse} />
+          <Route path="/technician/dashboard">
+            <ProtectedRoute requireProfile requireUserType="technician">
+              <TechnicianDashboard />
+            </ProtectedRoute>
+          </Route>
           <Route path="/technician/:id" component={TechnicianProfile} />
           <Route path="/customer/dashboard">
             <ProtectedRoute requireProfile requireUserType="customer">
               <CustomerDashboard />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/technician/dashboard">
-            <ProtectedRoute requireProfile requireUserType="technician">
-              <TechnicianDashboard />
             </ProtectedRoute>
           </Route>
           <Route path="/thank/:jobId">

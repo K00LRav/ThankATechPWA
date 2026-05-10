@@ -74,8 +74,18 @@ export interface JobInput {
   scheduledDate?: string;
 }
 
+export type JobUpdateStatus =
+  (typeof JobUpdateStatus)[keyof typeof JobUpdateStatus];
+
+export const JobUpdateStatus = {
+  pending: "pending",
+  confirmed: "confirmed",
+  declined: "declined",
+  completed: "completed",
+} as const;
+
 export interface JobUpdate {
-  status?: string;
+  status?: JobUpdateStatus;
   completedAt?: string;
 }
 

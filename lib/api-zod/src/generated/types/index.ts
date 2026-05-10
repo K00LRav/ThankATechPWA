@@ -17,6 +17,7 @@ export * from "./healthStatus";
 export * from "./job";
 export * from "./jobInput";
 export * from "./jobUpdate";
+export * from "./jobUpdateStatus";
 export * from "./listJobsParams";
 export * from "./listTechniciansParams";
 export * from "./listThankMessagesParams";

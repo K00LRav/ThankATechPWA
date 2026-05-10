@@ -1,17 +1,21 @@
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function TechnicianDashboard() {
   const { data: profileEnvelope } = useMyProfile();
   const profile = profileEnvelope?.profile;
   const technicianId = profile?.technicianId ?? undefined;
   const [location] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: stats, isLoading: isStatsLoading } = useGetTechnicianStats(technicianId!, {
     query: { enabled: !!technicianId, queryKey: getGetTechnicianStatsQueryKey(technicianId!) }
@@ -47,6 +51,7 @@ export function TechnicianDashboard() {
   });
 
   const createOnboarding = useCreateStripeConnectOnboarding();
+  const updateJob = useUpdateJob();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -60,6 +65,18 @@ export function TechnicianDashboard() {
       const result = await createOnboarding.mutateAsync(undefined);
       window.location.href = result.url;
     } catch {
+    }
+  }
+
+  async function handleJobStatus(jobId: number, status: "confirmed" | "declined" | "completed") {
+    try {
+      await updateJob.mutateAsync({ id: jobId, data: { status } });
+      await queryClient.invalidateQueries({ queryKey: getListJobsQueryKey({}) });
+      if (status === "confirmed") toast.success("Job accepted — the customer will be notified.");
+      else if (status === "declined") toast.info("Job declined.");
+      else if (status === "completed") toast.success("Job marked as complete!");
+    } catch {
+      toast.error("Something went wrong. Please try again.");
     }
   }
 
@@ -77,6 +94,10 @@ export function TechnicianDashboard() {
   }
 
   const stripeConnected = stripeStatus?.connected && stripeStatus?.onboardingComplete;
+
+  const pendingJobs = jobs?.filter(j => j.status === 'pending') ?? [];
+  const activeJobs = jobs?.filter(j => j.status === 'confirmed') ?? [];
+  const completedJobs = jobs?.filter(j => j.status === 'completed') ?? [];
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
@@ -255,47 +276,118 @@ export function TechnicianDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-xl font-bold border-b pb-2">Active Jobs</h2>
 
             {isJobsLoading ? (
               <div className="space-y-4">
                 {[1, 2].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
               </div>
             ) : (
-              <div className="space-y-4">
-                {jobs?.filter(j => j.status !== 'completed').map(job => (
-                  <Card key={job.id} className="border-l-4 border-l-secondary shadow-sm">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-lg">{job.title}</h3>
-                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary uppercase tracking-wide">
-                          {job.status}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground mb-4">{job.description}</p>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="font-medium text-foreground">Customer: {job.customerName}</span>
-                        {job.status === 'accepted' && (
-                          <Button size="sm" variant="outline" className="rounded-full">Mark Complete</Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {jobs?.filter(j => j.status !== 'completed').length === 0 && (
-                  <div className="text-center py-12 bg-card rounded-xl border border-dashed">
-                    <p className="text-muted-foreground">No active jobs right now.</p>
+              <>
+                {pendingJobs.length > 0 && (
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-bold border-b pb-2 flex items-center gap-2">
+                      Incoming Requests
+                      <Badge className="bg-primary text-white rounded-full px-2 py-0.5 text-xs font-semibold">
+                        {pendingJobs.length}
+                      </Badge>
+                    </h2>
+                    {pendingJobs.map(job => (
+                      <Card key={job.id} className="border-l-4 border-l-primary shadow-sm">
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-2 gap-3 flex-wrap">
+                            <h3 className="font-bold text-lg">{job.title}</h3>
+                            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase tracking-wide text-xs font-semibold">
+                              Pending
+                            </Badge>
+                          </div>
+                          {job.description && (
+                            <p className="text-muted-foreground mb-3">{job.description}</p>
+                          )}
+                          {job.address && (
+                            <p className="text-sm text-muted-foreground mb-1">
+                              <span className="font-medium">Location:</span> {job.address}
+                            </p>
+                          )}
+                          {job.scheduledDate && (
+                            <p className="text-sm text-muted-foreground mb-3">
+                              <span className="font-medium">Scheduled:</span>{" "}
+                              {new Date(job.scheduledDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
+                          )}
+                          <div className="flex justify-between items-center mt-4">
+                            <span className="text-sm font-medium text-foreground">From: {job.customerName}</span>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/10"
+                                disabled={updateJob.isPending}
+                                onClick={() => handleJobStatus(job.id, "declined")}
+                              >
+                                <X className="w-3.5 h-3.5 mr-1" />
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="rounded-full bg-secondary hover:bg-secondary/90 text-white"
+                                disabled={updateJob.isPending}
+                                onClick={() => handleJobStatus(job.id, "confirmed")}
+                              >
+                                <Check className="w-3.5 h-3.5 mr-1" />
+                                Accept
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
-              </div>
+
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold border-b pb-2">Active Jobs</h2>
+                  {activeJobs.map(job => (
+                    <Card key={job.id} className="border-l-4 border-l-secondary shadow-sm">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-bold text-lg">{job.title}</h3>
+                          <Badge className="bg-secondary/10 text-secondary border-secondary/20 uppercase tracking-wide text-xs font-semibold">
+                            Confirmed
+                          </Badge>
+                        </div>
+                        {job.description && (
+                          <p className="text-muted-foreground mb-4">{job.description}</p>
+                        )}
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-medium text-foreground">Customer: {job.customerName}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            disabled={updateJob.isPending}
+                            onClick={() => handleJobStatus(job.id, "completed")}
+                          >
+                            Mark Complete
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {activeJobs.length === 0 && pendingJobs.length === 0 && (
+                    <div className="text-center py-12 bg-card rounded-xl border border-dashed">
+                      <p className="text-muted-foreground">No active jobs right now.</p>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
           <div className="space-y-6">
             <h2 className="text-xl font-bold border-b pb-2">Recent Completed</h2>
             <div className="space-y-4">
-              {jobs?.filter(j => j.status === 'completed').slice(0, 5).map(job => (
+              {completedJobs.slice(0, 5).map(job => (
                 <div key={job.id} className="bg-card p-4 rounded-xl border shadow-sm flex flex-col gap-2">
                   <div className="flex justify-between items-start">
                     <h4 className="font-medium truncate pr-2">{job.title}</h4>
@@ -306,6 +398,11 @@ export function TechnicianDashboard() {
                   </div>
                 </div>
               ))}
+              {completedJobs.length === 0 && (
+                <div className="text-center py-8 bg-card rounded-xl border border-dashed">
+                  <p className="text-sm text-muted-foreground">No completed jobs yet.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

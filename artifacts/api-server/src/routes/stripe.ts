@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { techniciansTable, thankMessagesTable, profilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { techniciansTable, thankMessagesTable, profilesTable, jobsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { getUncachableStripeClient, getStripePublishableKey } from "../lib/stripeClient";
 import { applyPaymentSuccess } from "../lib/applyPaymentSuccess";
 
@@ -338,6 +338,58 @@ router.get("/stripe/connect/dashboard-link", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error creating Stripe Express dashboard link");
     return res.status(500).json({ error: "Failed to create dashboard link" });
+  }
+});
+
+router.get("/stripe/earnings", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const technicianId = await getTechnicianIdForUser(req.user.id);
+    if (!technicianId) {
+      return res.status(404).json({ error: "Technician profile not found" });
+    }
+
+    const rows = await db
+      .select({
+        id: thankMessagesTable.id,
+        tipAmount: thankMessagesTable.tipAmount,
+        customerName: thankMessagesTable.customerName,
+        jobId: thankMessagesTable.jobId,
+        jobTitle: jobsTable.title,
+        createdAt: thankMessagesTable.createdAt,
+      })
+      .from(thankMessagesTable)
+      .leftJoin(jobsTable, eq(thankMessagesTable.jobId, jobsTable.id))
+      .where(
+        and(
+          eq(thankMessagesTable.technicianId, technicianId),
+          eq(thankMessagesTable.paymentStatus, "succeeded")
+        )
+      )
+      .orderBy(thankMessagesTable.createdAt);
+
+    const entries = rows.map(r => ({
+      id: r.id,
+      tipAmount: parseFloat(r.tipAmount ?? "0"),
+      customerName: r.customerName,
+      jobId: r.jobId,
+      jobTitle: r.jobTitle ?? "",
+      createdAt: r.createdAt.toISOString(),
+    }));
+
+    const totalEarned = entries.reduce((sum, e) => sum + e.tipAmount, 0);
+
+    return res.json({
+      totalEarned: Math.round(totalEarned * 100) / 100,
+      tipCount: entries.length,
+      entries,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error fetching earnings");
+    return res.status(500).json({ error: "Failed to fetch earnings" });
   }
 });
 

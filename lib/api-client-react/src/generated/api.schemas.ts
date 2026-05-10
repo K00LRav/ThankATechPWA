@@ -195,6 +195,21 @@ export interface UpsertProfileInput {
   bio?: string;
 }
 
+export interface EarningEntry {
+  id: number;
+  tipAmount: number;
+  customerName: string;
+  jobId?: number;
+  jobTitle?: string;
+  createdAt: string;
+}
+
+export interface StripeEarnings {
+  totalEarned: number;
+  tipCount: number;
+  entries: EarningEntry[];
+}
+
 export interface StripeConfig {
   publishableKey: string;
 }

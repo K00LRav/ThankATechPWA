@@ -41,6 +41,7 @@ import type {
   StripeConfig,
   StripeConnectStatus,
   StripeDashboardLink,
+  StripeEarnings,
   StripeOnboardingUrl,
   StripePaymentCompleteInput,
   StripePaymentCompleteResult,
@@ -2352,6 +2353,81 @@ export function useGetStripeConnectDashboardLink<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetStripeConnectDashboardLinkQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get the authenticated technician's tip earnings and payout history
+ */
+export const getGetStripeEarningsUrl = () => {
+  return `/api/stripe/earnings`;
+};
+
+export const getStripeEarnings = async (
+  options?: RequestInit,
+): Promise<StripeEarnings> => {
+  return customFetch<StripeEarnings>(getGetStripeEarningsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStripeEarningsQueryKey = () => {
+  return [`/api/stripe/earnings`] as const;
+};
+
+export const getGetStripeEarningsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStripeEarnings>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeEarnings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStripeEarningsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStripeEarnings>>
+  > = ({ signal }) => getStripeEarnings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeEarnings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStripeEarningsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStripeEarnings>>
+>;
+export type GetStripeEarningsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the authenticated technician's tip earnings and payout history
+ */
+
+export function useGetStripeEarnings<
+  TData = Awaited<ReturnType<typeof getStripeEarnings>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeEarnings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStripeEarningsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

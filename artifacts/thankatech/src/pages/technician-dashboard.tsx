@@ -1,6 +1,6 @@
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -36,6 +36,13 @@ export function TechnicianDashboard() {
       queryKey: getGetStripeConnectDashboardLinkQueryKey(),
       retry: false,
       staleTime: 60_000,
+    },
+  });
+
+  const { data: earnings, isLoading: isEarningsLoading } = useGetStripeEarnings({
+    query: {
+      enabled: !!technicianId,
+      queryKey: getGetStripeEarningsQueryKey(),
     },
   });
 
@@ -129,35 +136,30 @@ export function TechnicianDashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={<Heart className="text-primary" />} title="Total Thanks" value={stats?.totalThanks || 0} />
-            <StatCard icon={<DollarSign className="text-green-600" />} title="Tips Earned" value={`$${stats?.totalTips || 0}`} />
+            <StatCard icon={<DollarSign className="text-green-600" />} title="Tips Earned" value={`$${stats?.totalEarned?.toFixed(2) || "0.00"}`} />
             <StatCard icon={<TrendingUp className="text-blue-500" />} title="Avg Tip" value={`$${stats?.avgTipAmount || 0}`} />
             <StatCard icon={<CheckCircle2 className="text-secondary" />} title="Jobs Completed" value={stats?.totalJobs || 0} />
           </div>
         )}
 
-        {stripeConnected && (
-          <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-5">
-            <div className="flex items-center gap-3 mb-4">
+        <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-5 space-y-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               <div className="p-2.5 bg-secondary/10 rounded-full flex-shrink-0">
                 <Landmark className="w-5 h-5 text-secondary" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">Payouts</h2>
+                <h2 className="text-lg font-bold">Earnings</h2>
                 <p className="text-sm text-muted-foreground">
-                  Tips you receive are transferred directly to your bank account (91% of each tip after the platform fee).
+                  Tips you've received (91% of each tip after the platform fee).
                 </p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex-1 bg-card rounded-xl border px-4 py-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Total Earned</p>
-                <p className="text-2xl font-bold text-secondary">${stats?.totalTips ?? "0"}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Gross tips received</p>
-              </div>
+            {stripeConnected && (
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 self-start sm:self-auto flex-shrink-0"
+                className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 flex-shrink-0"
                 disabled={isDashboardLinkLoading}
                 onClick={() => {
                   if (dashboardLink?.url) {
@@ -170,12 +172,86 @@ export function TechnicianDashboard() {
                 {isDashboardLinkLoading ? "Loading..." : dashboardLink ? "View Stripe Dashboard" : "Open Dashboard"}
                 <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Your Stripe Express dashboard shows your full payout history, upcoming transfers, and bank account details.
-            </p>
+            )}
           </div>
-        )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-card rounded-xl border px-4 py-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Total Earned</p>
+              {isEarningsLoading ? (
+                <Skeleton className="h-8 w-20 mt-1" />
+              ) : (
+                <p className="text-2xl font-bold text-secondary">${earnings?.totalEarned?.toFixed(2) ?? "0.00"}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">Gross tips received</p>
+            </div>
+            <div className="bg-card rounded-xl border px-4 py-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Payments</p>
+              {isEarningsLoading ? (
+                <Skeleton className="h-8 w-12 mt-1" />
+              ) : (
+                <p className="text-2xl font-bold">{earnings?.tipCount ?? 0}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">Completed tips</p>
+            </div>
+            <div className="bg-card rounded-xl border px-4 py-3 col-span-2 sm:col-span-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Net Payout</p>
+              {isEarningsLoading ? (
+                <Skeleton className="h-8 w-20 mt-1" />
+              ) : (
+                <p className="text-2xl font-bold text-secondary">
+                  ${((earnings?.totalEarned ?? 0) * 0.91).toFixed(2)}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">After 9% platform fee</p>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ReceiptText className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Payout History</h3>
+            </div>
+
+            {isEarningsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
+              </div>
+            ) : earnings && earnings.entries.length > 0 ? (
+              <div className="space-y-2">
+                {[...earnings.entries].reverse().map(entry => (
+                  <div
+                    key={entry.id}
+                    className="bg-card rounded-xl border px-4 py-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{entry.customerName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{entry.jobTitle || "Job"}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-secondary">${entry.tipAmount.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(entry.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-card rounded-xl border border-dashed">
+                <DollarSign className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No tips received yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Tips from customers will appear here once paid.</p>
+              </div>
+            )}
+
+            {stripeConnected && (
+              <p className="text-xs text-muted-foreground mt-3">
+                Your Stripe Express dashboard shows your full payout schedule, upcoming transfers, and bank account details.
+              </p>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">

@@ -550,6 +550,23 @@ paths:
         "404":
           description: Technician profile not found
 
+  /stripe/earnings:
+    get:
+      operationId: getStripeEarnings
+      tags: [stripe]
+      summary: Get the authenticated technician's tip earnings and payout history
+      responses:
+        "200":
+          description: Earnings summary and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeEarnings"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Technician profile not found
+
   /stripe/payment-complete:
     post:
       operationId: recordStripePaymentComplete
@@ -1008,6 +1025,36 @@ components:
           type: string
         bio:
           type: string
+
+    EarningEntry:
+      type: object
+      required: [id, tipAmount, customerName, createdAt]
+      properties:
+        id:
+          type: integer
+        tipAmount:
+          type: number
+        customerName:
+          type: string
+        jobId:
+          type: integer
+        jobTitle:
+          type: string
+        createdAt:
+          type: string
+
+    StripeEarnings:
+      type: object
+      required: [totalEarned, tipCount, entries]
+      properties:
+        totalEarned:
+          type: number
+        tipCount:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarningEntry"
 
     StripeConfig:
       type: object

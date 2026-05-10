@@ -437,6 +437,24 @@ export const GetStripeConnectDashboardLinkResponse = zod.object({
 });
 
 /**
+ * @summary Get the authenticated technician's tip earnings and payout history
+ */
+export const GetStripeEarningsResponse = zod.object({
+  totalEarned: zod.number(),
+  tipCount: zod.number(),
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      tipAmount: zod.number(),
+      customerName: zod.string(),
+      jobId: zod.number().optional(),
+      jobTitle: zod.string().optional(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary Record that a Stripe payment was completed
  */
 export const RecordStripePaymentCompleteBody = zod.object({

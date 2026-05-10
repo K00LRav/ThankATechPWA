@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +18,7 @@ import {
   useGetMyProfile,
   useGetPoints,
   useGetPointTransactions,
+  useUpdateJob,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
@@ -51,14 +53,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function JobCard({ item, canThank }: { item: {
+function JobCard({ item, canThank, onCancel, cancelling }: { item: {
   id: number;
   title: string;
   status: string;
   technicianName?: string;
   createdAt: string;
   completedAt?: string | null;
-}; canThank: boolean }) {
+}; canThank: boolean; onCancel?: (id: number) => void; cancelling?: boolean }) {
   const colors = useColors();
   const router = useRouter();
   const date = new Date(item.createdAt).toLocaleDateString("en-US", {
@@ -88,6 +90,31 @@ function JobCard({ item, canThank }: { item: {
         >
           <Ionicons name="heart-outline" size={16} color="#fff" />
           <Text style={[styles.thankBtnText, { fontFamily: "Inter_600SemiBold" }]}>Send Thanks</Text>
+        </TouchableOpacity>
+      )}
+      {item.status === "pending" && onCancel && (
+        <TouchableOpacity
+          style={[
+            styles.cancelBtn,
+            { borderColor: cancelling ? colors.mutedForeground : colors.destructive, opacity: cancelling ? 0.6 : 1 },
+          ]}
+          onPress={() => !cancelling && onCancel(item.id)}
+          disabled={cancelling}
+          testID={`cancel-job-${item.id}`}
+        >
+          {cancelling ? (
+            <ActivityIndicator size="small" color={colors.mutedForeground} />
+          ) : (
+            <Ionicons name="close-circle-outline" size={16} color={colors.destructive} />
+          )}
+          <Text
+            style={[
+              styles.cancelBtnText,
+              { color: cancelling ? colors.mutedForeground : colors.destructive, fontFamily: "Inter_600SemiBold" },
+            ]}
+          >
+            {cancelling ? "Cancelling…" : "Cancel Job"}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -173,6 +200,7 @@ export default function CustomerDashboard() {
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
 
   const { data: profileData } = useGetMyProfile();
   const profile = profileData?.profile;
@@ -187,6 +215,37 @@ export default function CustomerDashboard() {
   const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(
     profile?.profileId ?? 0
   );
+  const { mutate: cancelJob } = useUpdateJob();
+
+  const handleCancel = (jobId: number) => {
+    Alert.alert(
+      "Cancel Job",
+      "Are you sure you want to cancel this job request?",
+      [
+        { text: "Keep Job", style: "cancel" },
+        {
+          text: "Cancel Job",
+          style: "destructive",
+          onPress: () => {
+            setCancellingJobId(jobId);
+            cancelJob(
+              { id: jobId, data: { status: "cancelled" } },
+              {
+                onSuccess: () => {
+                  setCancellingJobId(null);
+                  refetch();
+                },
+                onError: () => {
+                  setCancellingJobId(null);
+                  Alert.alert("Error", "Could not cancel the job. Please try again.");
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -266,6 +325,8 @@ export default function CustomerDashboard() {
             <JobCard
               item={item}
               canThank={item.status === "completed"}
+              onCancel={handleCancel}
+              cancelling={cancellingJobId === item.id}
             />
           )}
           ListHeaderComponent={
@@ -368,6 +429,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   thankBtnText: { color: "#fff", fontSize: 14 },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  cancelBtnText: { fontSize: 14 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
   historySection: { marginBottom: 4 },

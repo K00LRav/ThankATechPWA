@@ -1,6 +1,6 @@
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, useGetPointTransactions, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetPointTransactionsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,11 @@ export function TechnicianDashboard() {
       enabled: !!technicianId,
       queryKey: getGetStripeEarningsQueryKey(),
     },
+  });
+
+  const profileId = profile?.profileId;
+  const { data: pointTransactions, isLoading: isTransactionsLoading } = useGetPointTransactions(profileId!, {
+    query: { enabled: !!profileId, queryKey: getGetPointTransactionsQueryKey(profileId!) }
   });
 
   const createOnboarding = useCreateStripeConnectOnboarding();
@@ -272,6 +277,47 @@ export function TechnicianDashboard() {
               </p>
             )}
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-full flex-shrink-0">
+              <Star className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Points History</h2>
+              <p className="text-sm text-muted-foreground">A breakdown of how you've earned your ThankYou Points.</p>
+            </div>
+          </div>
+
+          {isTransactionsLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
+            </div>
+          ) : pointTransactions && pointTransactions.length > 0 ? (
+            <div className="space-y-2">
+              {[...pointTransactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(tx => (
+                <div
+                  key={tx.id}
+                  className="bg-card rounded-xl border px-4 py-3 flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{tx.description || tx.type}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(tx.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                  <p className="font-bold text-primary flex-shrink-0">+{tx.amount} pts</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-card rounded-xl border border-dashed">
+              <Star className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No points earned yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Complete jobs and receive thanks to start earning points!</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

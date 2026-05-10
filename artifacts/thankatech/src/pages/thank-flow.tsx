@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, DollarSign, CheckCircle, ArrowLeft, Star, Lock, ShieldAlert } from "lucide-react";
+import { Heart, DollarSign, CheckCircle, ArrowLeft, Star, Lock, ShieldAlert, Clock } from "lucide-react";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadStripe } from "@stripe/stripe-js";
@@ -140,6 +140,7 @@ export function ThankFlow() {
   });
 
   const isNotOwner = job !== undefined && myProfile !== null && job.customerId !== myProfile.profileId;
+  const isNotCompleted = job !== undefined && job.status !== "completed";
 
   useEffect(() => {
     if (stripeConfig?.publishableKey) {
@@ -198,6 +199,8 @@ export function ThankFlow() {
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 403) {
         setSubmitError("You don't have permission to send a thank you for this job. It may not belong to your account.");
+      } else if (err instanceof ApiError && err.status === 409) {
+        setSubmitError("This job isn't completed yet and can't be thanked. Go back to your dashboard to check its status.");
       } else {
         const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
         setSubmitError(msg);
@@ -240,6 +243,44 @@ export function ThankFlow() {
             <h1 className="text-2xl font-serif font-bold text-foreground">Access Denied</h1>
             <p className="text-muted-foreground">
               You can only send a thank you for jobs that belong to your account.
+            </p>
+          </div>
+          <Button
+            onClick={() => setLocation("/customer/dashboard")}
+            className="rounded-full px-8 bg-primary hover:bg-primary/90"
+          >
+            Back to dashboard
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (isNotCompleted) {
+    const statusLabel =
+      job?.status === "pending"
+        ? "waiting for the technician to accept"
+        : job?.status === "confirmed"
+        ? "currently in progress"
+        : job?.status === "declined"
+        ? "declined"
+        : "not yet complete";
+
+    return (
+      <div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-md text-center space-y-6"
+        >
+          <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <Clock className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-serif font-bold text-foreground">Not ready yet</h1>
+            <p className="text-muted-foreground">
+              This job is {statusLabel}. You'll be able to send a thank you once it's marked as completed.
             </p>
           </div>
           <Button

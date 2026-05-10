@@ -75,6 +75,11 @@ router.post("/thanks", async (req, res) => {
       return;
     }
 
+    if (job.status !== "completed") {
+      res.status(409).json({ error: "This job is not yet completed and cannot be thanked." });
+      return;
+    }
+
     // Use the job's authoritative technicianId — never trust body.technicianId.
     const authorizedTechnicianId = job.technicianId;
 

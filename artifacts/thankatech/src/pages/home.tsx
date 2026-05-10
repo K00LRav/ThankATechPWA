@@ -11,7 +11,7 @@ export function Home() {
   const { data: stats } = useGetPlatformStats();
   const { data: recentThanks } = useGetRecentThanks();
   const { user } = useAuth();
-  const { data: profileData } = useMyProfile();
+  const { data: profileData, isSuccess: profileLoaded } = useMyProfile();
   const profile = profileData?.profile;
 
   const heroCTAs = (() => {
@@ -26,6 +26,13 @@ export function Home() {
       return (
         <Button size="lg" asChild className="rounded-full text-base px-8">
           <Link href="/customer/dashboard">My Dashboard</Link>
+        </Button>
+      );
+    }
+    if (user && profileLoaded && profile === null) {
+      return (
+        <Button size="lg" asChild className="rounded-full text-base px-8">
+          <Link href="/onboard">Complete Your Profile</Link>
         </Button>
       );
     }

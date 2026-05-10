@@ -25,8 +25,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus } from "lucide-react";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion, AnimatePresence } from "framer-motion";
+
+type DialogStep = "form" | "confirmation";
 
 export function TechnicianProfile() {
   const params = useParams();
@@ -38,20 +41,30 @@ export function TechnicianProfile() {
   const { data: profileEnvelope, isLoading: isProfileLoading } = useMyProfile();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogStep, setDialogStep] = useState<DialogStep>("form");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
+  const [confirmedTitle, setConfirmedTitle] = useState("");
+
+  function handleDialogOpenChange(open: boolean) {
+    setDialogOpen(open);
+    if (!open) {
+      setTimeout(() => {
+        setDialogStep("form");
+        setTitle("");
+        setDescription("");
+        setAddress("");
+        setConfirmedTitle("");
+      }, 300);
+    }
+  }
 
   const { mutate: createJob, isPending } = useCreateJob({
     mutation: {
       onSuccess: () => {
-        toast.success("Service request sent!", {
-          description: "Your request has been sent to the technician.",
-        });
-        setDialogOpen(false);
-        setTitle("");
-        setDescription("");
-        setAddress("");
+        setConfirmedTitle(title.trim());
+        setDialogStep("confirmation");
       },
       onError: () => {
         toast.error("Failed to send request", {
@@ -72,7 +85,6 @@ export function TechnicianProfile() {
       data: {
         customerId: profile.profileId,
         technicianId: id,
-        technicianName: tech.fullName,
         title: title.trim(),
         description: description.trim() || undefined,
         address: address.trim() || undefined,
@@ -202,56 +214,124 @@ export function TechnicianProfile() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-xl">Request Service</DialogTitle>
-            <DialogDescription>
-              Send a service request to {tech.fullName}. They'll be notified and can confirm your booking.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="title">What do you need help with? *</Label>
-              <Input
-                id="title"
-                placeholder="e.g. Fix leaking kitchen faucet"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                required
-                maxLength={120}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Additional details</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe the issue or any other details..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-                maxLength={500}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Service address</Label>
-              <Input
-                id="address"
-                placeholder="e.g. 123 Main St, Springfield"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                maxLength={200}
-              />
-            </div>
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={isPending}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isPending || !title.trim()}>
-                {isPending ? "Sending..." : "Send Request"}
-              </Button>
-            </DialogFooter>
-          </form>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="sm:max-w-md overflow-hidden">
+          <AnimatePresence mode="wait">
+            {dialogStep === "form" ? (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-xl">Request Service</DialogTitle>
+                  <DialogDescription>
+                    Send a service request to {tech.fullName}. They'll be notified and can confirm your booking.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">What do you need help with? *</Label>
+                    <Input
+                      id="title"
+                      placeholder="e.g. Fix leaking kitchen faucet"
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      required
+                      maxLength={120}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Additional details</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Describe the issue or any other details..."
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      rows={3}
+                      maxLength={500}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Service address</Label>
+                    <Input
+                      id="address"
+                      placeholder="e.g. 123 Main St, Springfield"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      maxLength={200}
+                    />
+                  </div>
+                  <DialogFooter className="pt-2">
+                    <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={isPending}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isPending || !title.trim()}>
+                      {isPending ? "Sending..." : "Send Request"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="confirmation"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col items-center text-center gap-6 py-4"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+                >
+                  <CheckCircle className="w-16 h-16 text-secondary" strokeWidth={1.5} />
+                </motion.div>
+
+                <div className="space-y-1">
+                  <h2 className="font-serif text-2xl font-bold text-foreground">Request Sent!</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Your booking request is on its way to {tech.fullName}.
+                  </p>
+                </div>
+
+                <div className="w-full rounded-xl border bg-muted/40 p-4 text-left space-y-3">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Service</p>
+                    <p className="font-semibold text-foreground">{confirmedTitle}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Technician</p>
+                    <p className="font-semibold text-foreground">{tech.fullName}</p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t">
+                    <Clock size={14} className="text-amber-500 shrink-0" />
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-400">Pending review</span>
+                    <span className="text-xs text-muted-foreground ml-auto">Waiting for technician</span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  You'll be notified once {tech.fullName.split(" ")[0]} accepts your request. In the meantime you can track it on your dashboard.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <Link href="/customer/dashboard" className="flex-1">
+                    <Button className="w-full gap-2" onClick={() => handleDialogOpenChange(false)}>
+                      <LayoutDashboard size={16} />
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                  <Button variant="outline" className="flex-1" onClick={() => handleDialogOpenChange(false)}>
+                    Stay here
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </DialogContent>
       </Dialog>
     </div>

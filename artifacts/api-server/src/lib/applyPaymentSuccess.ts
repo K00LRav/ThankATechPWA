@@ -15,6 +15,8 @@ import {
   jobsTable,
   pointsTable,
   pointTransactionsTable,
+  profilesTable,
+  pushTokensTable,
 } from '@workspace/db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { logger } from './logger';
@@ -56,11 +58,88 @@ export interface PaymentSuccessParams {
  * tipAmount is read from the DB (thank_messages.tipAmount) — never from caller-supplied
  * or PI metadata values — ensuring a single authoritative source for earnings accounting.
  */
+async function sendTipPaymentNotification(
+  technicianId: number,
+  customerName: string,
+  tipAmount: number,
+): Promise<void> {
+  // Look up the technician's userId to find their profileId.
+  const [tech] = await db
+    .select({ userId: techniciansTable.userId })
+    .from(techniciansTable)
+    .where(eq(techniciansTable.id, technicianId));
+  if (!tech?.userId) return;
+
+  const [profile] = await db
+    .select({ id: profilesTable.id })
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, tech.userId));
+  if (!profile) return;
+
+  const tokens = await db
+    .select({ token: pushTokensTable.token })
+    .from(pushTokensTable)
+    .where(eq(pushTokensTable.profileId, profile.id));
+  if (tokens.length === 0) return;
+
+  const formattedAmount = tipAmount.toFixed(2).replace(/\.00$/, '');
+  const body = `Your $${formattedAmount} tip from ${customerName} was received!`;
+
+  const messages = tokens.map(({ token }) => ({
+    to: token,
+    sound: 'default' as const,
+    title: 'Tip payment confirmed 💵',
+    body,
+    data: { technicianId },
+  }));
+
+  try {
+    const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+
+    // Prune tokens that Expo reports as invalid/unregistered.
+    if (pushRes.ok) {
+      const json = (await pushRes.json()) as {
+        data?: Array<{ status: string; details?: { error?: string } }>;
+      };
+      const staleTokens: string[] = [];
+      (json.data ?? []).forEach((ticket, i) => {
+        if (
+          ticket.status === 'error' &&
+          ticket.details?.error === 'DeviceNotRegistered'
+        ) {
+          const staleToken = tokens[i]?.token;
+          if (staleToken) staleTokens.push(staleToken);
+        }
+      });
+      if (staleTokens.length > 0) {
+        await db
+          .delete(pushTokensTable)
+          .where(
+            and(
+              eq(pushTokensTable.profileId, profile.id),
+              sql`${pushTokensTable.token} = ANY(${staleTokens})`,
+            ),
+          );
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, technicianId }, 'Failed to send tip payment push notification');
+  }
+}
+
 export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise<boolean> {
   const { thankMessageId, paymentIntentId, technicianId, jobId } = params;
 
   // Idempotency guard: update only when NOT already succeeded.
-  // Also returns the stored tipAmount so we use the DB value for downstream accounting.
+  // Also returns the stored tipAmount and customerName so we use the DB values for downstream accounting.
   const updated = await db
     .update(thankMessagesTable)
     .set({ paymentStatus: 'succeeded', stripePaymentIntentId: paymentIntentId })
@@ -68,7 +147,7 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
       eq(thankMessagesTable.id, thankMessageId),
       ne(thankMessagesTable.paymentStatus, 'succeeded'),
     ))
-    .returning({ id: thankMessagesTable.id, tipAmount: thankMessagesTable.tipAmount });
+    .returning({ id: thankMessagesTable.id, tipAmount: thankMessagesTable.tipAmount, customerName: thankMessagesTable.customerName });
 
   if (updated.length === 0) {
     logger.info({ thankMessageId }, 'applyPaymentSuccess: already processed, skipping side effects');
@@ -77,6 +156,7 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
 
   // Use DB-stored tipAmount as the authoritative value for earnings — not caller/metadata values
   const tipAmount = parseFloat(updated[0].tipAmount ?? '0');
+  const customerName = updated[0].customerName ?? 'A customer';
 
   // Credit technician earnings and award tip points
   if (tipAmount > 0) {
@@ -86,6 +166,10 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
       .where(eq(techniciansTable.id, technicianId));
 
     await awardPoints(technicianId, 50, 'tip_received', jobId, 'Received a tip');
+
+    // Fire push notification to the technician asynchronously — don't block the main flow.
+    sendTipPaymentNotification(technicianId, customerName, tipAmount)
+      .catch((err) => logger.warn({ err, technicianId }, 'Failed to send tip payment push notification'));
   }
 
   // Mark job as thanked (with payment) and set completion timestamp

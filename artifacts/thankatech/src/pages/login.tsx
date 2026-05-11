@@ -2,11 +2,54 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Wrench, User, LogIn, ArrowRight } from "lucide-react";
+import { Heart, Wrench, User, LogIn, ArrowRight, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
 
 type UserType = "customer" | "technician";
+
+const IS_DEV = import.meta.env.DEV;
+
+function devLogin(role: "customer" | "technician") {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/auth/dev-login";
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "role";
+  input.value = role;
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function DevLoginButtons() {
+  return (
+    <div className="space-y-3 pt-2 border-t border-border/40">
+      <p className="text-center text-xs font-medium text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+        Dev Preview — no login required
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          onClick={() => devLogin("customer")}
+          className="h-10 text-xs rounded-full border-primary/40 text-primary hover:bg-primary/5"
+        >
+          <Eye className="w-3 h-3 mr-1.5" />
+          Preview as Customer
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => devLogin("technician")}
+          className="h-10 text-xs rounded-full border-secondary/40 text-secondary hover:bg-secondary/5"
+        >
+          <Eye className="w-3 h-3 mr-1.5" />
+          Preview as Technician
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function Login() {
   const { isAuthenticated, isLoading, login } = useAuth();
@@ -69,6 +112,8 @@ export function Login() {
                   New users will be asked to choose their role after signing in.
                 </p>
               </div>
+
+              {IS_DEV && <DevLoginButtons />}
             </CardContent>
           </Card>
         </motion.div>

@@ -202,6 +202,84 @@ router.get("/logout", async (req: Request, res: Response) => {
   res.redirect(endSessionUrl.href);
 });
 
+router.post("/auth/dev-login", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV !== "development") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const role = req.body?.role === "technician" ? "technician" : "customer";
+  const demoUserId = `dev_${role}`;
+
+  try {
+    const [dbUser] = await db
+      .insert(usersTable)
+      .values({
+        id: demoUserId,
+        email: `${role}@thankatech.dev`,
+        firstName: "Demo",
+        lastName: role === "customer" ? "Customer" : "Technician",
+        profileImageUrl: null,
+      })
+      .onConflictDoUpdate({ target: usersTable.id, set: { updatedAt: new Date() } })
+      .returning();
+
+    const { profilesTable, techniciansTable } = await import("@workspace/db");
+    const { eq } = await import("drizzle-orm");
+
+    const [existingProfile] = await db
+      .select()
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, demoUserId));
+
+    if (!existingProfile) {
+      await db.insert(profilesTable).values({
+        userId: demoUserId,
+        userType: role,
+        fullName: role === "customer" ? "Demo Customer" : "Demo Technician",
+      });
+    }
+
+    if (role === "technician") {
+      const [existingTech] = await db
+        .select({ id: techniciansTable.id })
+        .from(techniciansTable)
+        .where(eq(techniciansTable.userId, demoUserId));
+
+      if (!existingTech) {
+        await db.insert(techniciansTable).values({
+          userId: demoUserId,
+          fullName: "Demo Technician",
+          specialty: "General Repair",
+          specialties: ["General Repair"],
+          serviceArea: "Austin, TX",
+          bio: "Demo technician account for testing.",
+          certifications: [],
+        });
+      }
+    }
+
+    const sessionData: SessionData = {
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        profileImageUrl: dbUser.profileImageUrl,
+      },
+      access_token: "dev_token",
+      expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+    };
+
+    const sid = await createSession(sessionData);
+    setSessionCookie(res, sid);
+    res.redirect(role === "technician" ? "/technician/dashboard" : "/customer/dashboard");
+  } catch (err) {
+    req.log.error({ err }, "Dev login error");
+    res.status(500).json({ error: "Dev login failed" });
+  }
+});
+
 router.post(
   "/mobile-auth/token-exchange",
   async (req: Request, res: Response) => {

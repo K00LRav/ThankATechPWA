@@ -33,6 +33,7 @@ import {
   useGetStripeEarnings,
   useGetStripeConnectStatus,
   useGetStripeConnectDashboardLink,
+  useUpdateJob,
   getGetPointsQueryKey,
   getGetPointTransactionsQueryKey,
 } from "@workspace/api-client-react";
@@ -260,6 +261,7 @@ export default function TechnicianDashboard() {
   const isWeb = Platform.OS === "web";
   const [refreshing, setRefreshing] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
   const tokenRegisteredRef = useRef(false);
 
   const { data: profileData } = useGetMyProfile();
@@ -278,6 +280,8 @@ export default function TechnicianDashboard() {
   const { data: dashboardLink, isLoading: dashboardLinkLoading } = useGetStripeConnectDashboardLink({
     query: { enabled: stripeStatus?.onboardingComplete === true },
   });
+
+  const updateJob = useUpdateJob();
 
   const { mutateAsync: registerTokenAsync } = useRegisterPushToken();
   const { mutateAsync: unregisterTokenAsync } = useUnregisterPushToken();
@@ -361,6 +365,25 @@ export default function TechnicianDashboard() {
     setRefreshing(false);
   };
 
+  const handleJobAction = useCallback(async (jobId: number, status: "confirmed" | "declined") => {
+    setActionLoading(jobId);
+    try {
+      await updateJob.mutateAsync({ id: jobId, data: { status } });
+      await refetchJobs();
+      Alert.alert(
+        status === "confirmed" ? "Job Accepted" : "Job Declined",
+        status === "confirmed"
+          ? "You've accepted this job. The customer will be notified."
+          : "You've declined this job.",
+        [{ text: "OK" }]
+      );
+    } catch {
+      Alert.alert("Something went wrong", "Please try again.", [{ text: "OK" }]);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [updateJob, refetchJobs]);
+
   const handleOpenStripeDashboard = useCallback(async () => {
     if (!dashboardLink?.url) return;
     try {
@@ -372,7 +395,8 @@ export default function TechnicianDashboard() {
 
   const topPadding = isWeb ? 67 : insets.top;
 
-  const pendingJobs = jobs?.filter((j) => j.status === "pending" || j.status === "in_progress") ?? [];
+  const pendingRequests = jobs?.filter((j) => j.status === "pending") ?? [];
+  const activeJobs = jobs?.filter((j) => j.status === "confirmed" || j.status === "in_progress") ?? [];
   const recentWall = wall?.slice(0, 3) ?? [];
 
   const TX_ICON: Record<string, { name: string; colorKey: "primary" | "secondary" }> = {
@@ -447,24 +471,100 @@ export default function TechnicianDashboard() {
           </View>
         </View>
 
-        {/* Active Jobs */}
+        {/* Pending Requests */}
         <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+            Pending Requests
+          </Text>
+          {pendingRequests.length > 0 && (
+            <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.countBadgeText, { fontFamily: "Inter_700Bold" }]}>
+                {pendingRequests.length}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {jobsLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+        ) : pendingRequests.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="checkmark-circle-outline" size={28} color={colors.secondary} />
+            <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              No pending requests
+            </Text>
+          </View>
+        ) : (
+          pendingRequests.map((item) => {
+            const isActing = actionLoading === item.id;
+            return (
+              <View
+                key={item.id}
+                style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.primary + "40" }]}
+              >
+                <View style={styles.jobHeader}>
+                  <Text style={[styles.jobTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    {item.title}
+                  </Text>
+                  <StatusBadge status={item.status} />
+                </View>
+                {item.customerName && (
+                  <View style={styles.jobMeta}>
+                    <Ionicons name="person-outline" size={13} color={colors.mutedForeground} />
+                    <Text style={[styles.jobMetaText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      {item.customerName}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.jobActions}>
+                  <TouchableOpacity
+                    style={[styles.declineBtn, { borderColor: colors.destructive, opacity: isActing ? 0.5 : 1 }]}
+                    onPress={() => handleJobAction(item.id, "declined")}
+                    disabled={isActing}
+                  >
+                    {isActing ? (
+                      <ActivityIndicator size="small" color={colors.destructive} />
+                    ) : (
+                      <Text style={[styles.declineBtnText, { color: colors.destructive, fontFamily: "Inter_600SemiBold" }]}>
+                        Decline
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.acceptBtn, { backgroundColor: colors.secondary, opacity: isActing ? 0.5 : 1 }]}
+                    onPress={() => handleJobAction(item.id, "confirmed")}
+                    disabled={isActing}
+                  >
+                    {isActing ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={[styles.acceptBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+                        Accept
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        {/* Active Jobs */}
+        <View style={[styles.sectionHeader, { marginTop: 8 }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
             Active Jobs
           </Text>
         </View>
 
-        {jobsLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
-        ) : pendingJobs.length === 0 ? (
+        {jobsLoading ? null : activeJobs.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Ionicons name="checkmark-circle-outline" size={28} color={colors.secondary} />
+            <Ionicons name="briefcase-outline" size={28} color={colors.mutedForeground} />
             <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              All caught up!
+              No active jobs
             </Text>
           </View>
         ) : (
-          pendingJobs.map((item) => (
+          activeJobs.map((item) => (
             <View
               key={item.id}
               style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -766,6 +866,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   redeemHeaderBtnText: { color: "#fff", fontSize: 13 },
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  countBadgeText: { color: "#fff", fontSize: 12 },
   jobCard: {
     borderRadius: 14,
     borderWidth: 1,
@@ -787,6 +896,30 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12 },
   jobMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
   jobMetaText: { fontSize: 13 },
+  jobActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  declineBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 38,
+  },
+  declineBtnText: { fontSize: 14 },
+  acceptBtn: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 38,
+  },
+  acceptBtnText: { color: "#fff", fontSize: 14 },
   emptyCard: {
     borderRadius: 14,
     borderWidth: 1,

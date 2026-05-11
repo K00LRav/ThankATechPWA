@@ -154,9 +154,26 @@ router.patch("/jobs/:id", async (req, res) => {
     }
 
     const body = req.body;
+
+    if (body.status !== undefined) {
+      const validTransitions: Record<string, string[]> = {
+        pending: ["confirmed", "declined"],
+        confirmed: ["completed"],
+      };
+      const allowed = validTransitions[existing.status] ?? [];
+      if (!allowed.includes(body.status)) {
+        return res.status(400).json({
+          error: `Cannot transition job from "${existing.status}" to "${body.status}".`,
+        });
+      }
+    }
+
     const updates: Partial<typeof jobsTable.$inferInsert> = {};
     if (body.status !== undefined) updates.status = body.status;
     if (body.completedAt !== undefined) updates.completedAt = new Date(body.completedAt);
+    if (body.status === "completed" && existing.status !== "completed") {
+      updates.completedAt = new Date();
+    }
 
     const [job] = await db
       .update(jobsTable)

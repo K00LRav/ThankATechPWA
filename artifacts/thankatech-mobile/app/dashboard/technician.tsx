@@ -365,18 +365,18 @@ export default function TechnicianDashboard() {
     setRefreshing(false);
   };
 
-  const handleJobAction = useCallback(async (jobId: number, status: "confirmed" | "declined") => {
+  const handleJobAction = useCallback(async (jobId: number, status: "confirmed" | "declined" | "completed") => {
     setActionLoading(jobId);
     try {
       await updateJob.mutateAsync({ id: jobId, data: { status } });
       await refetchJobs();
-      Alert.alert(
-        status === "confirmed" ? "Job Accepted" : "Job Declined",
-        status === "confirmed"
-          ? "You've accepted this job. The customer will be notified."
-          : "You've declined this job.",
-        [{ text: "OK" }]
-      );
+      if (status === "confirmed") {
+        Alert.alert("Job Accepted", "You've accepted this job. The customer will be notified.", [{ text: "OK" }]);
+      } else if (status === "declined") {
+        Alert.alert("Job Declined", "You've declined this job.", [{ text: "OK" }]);
+      } else if (status === "completed") {
+        Alert.alert("Job Completed", "The job has been marked as complete. The customer can now send their thanks!", [{ text: "OK" }]);
+      }
     } catch {
       Alert.alert("Something went wrong", "Please try again.", [{ text: "OK" }]);
     } finally {
@@ -564,27 +564,51 @@ export default function TechnicianDashboard() {
             </Text>
           </View>
         ) : (
-          activeJobs.map((item) => (
-            <View
-              key={item.id}
-              style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <View style={styles.jobHeader}>
-                <Text style={[styles.jobTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
-                  {item.title}
-                </Text>
-                <StatusBadge status={item.status} />
-              </View>
-              {item.customerName && (
-                <View style={styles.jobMeta}>
-                  <Ionicons name="person-outline" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.jobMetaText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                    {item.customerName}
+          activeJobs.map((item) => {
+            const isActing = actionLoading === item.id;
+            return (
+              <View
+                key={item.id}
+                style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.secondary + "40" }]}
+              >
+                <View style={styles.jobHeader}>
+                  <Text style={[styles.jobTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    {item.title}
                   </Text>
+                  <StatusBadge status={item.status} />
                 </View>
-              )}
-            </View>
-          ))
+                {item.customerName && (
+                  <View style={styles.jobMeta}>
+                    <Ionicons name="person-outline" size={13} color={colors.mutedForeground} />
+                    <Text style={[styles.jobMetaText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      {item.customerName}
+                    </Text>
+                  </View>
+                )}
+                {item.status === "confirmed" && (
+                  <TouchableOpacity
+                    style={[
+                      styles.completeBtn,
+                      { borderColor: colors.secondary, opacity: isActing ? 0.5 : 1 },
+                    ]}
+                    onPress={() => handleJobAction(item.id, "completed")}
+                    disabled={isActing}
+                  >
+                    {isActing ? (
+                      <ActivityIndicator size="small" color={colors.secondary} />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={16} color={colors.secondary} />
+                        <Text style={[styles.completeBtnText, { color: colors.secondary, fontFamily: "Inter_600SemiBold" }]}>
+                          Mark as Complete
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })
         )}
 
         {/* Wall of Thanks Preview */}
@@ -920,6 +944,18 @@ const styles = StyleSheet.create({
     minHeight: 38,
   },
   acceptBtnText: { color: "#fff", fontSize: 14 },
+  completeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 9,
+    minHeight: 38,
+  },
+  completeBtnText: { fontSize: 14 },
   emptyCard: {
     borderRadius: 14,
     borderWidth: 1,

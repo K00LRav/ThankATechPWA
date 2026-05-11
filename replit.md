@@ -9,8 +9,20 @@ A gratitude-first marketplace where customers thank technicians with heartfelt m
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run push` — push DB schema changes non-interactively; ideal for dev/reset flows — review before using on shared or production data
+- `pnpm --filter @workspace/db run push-interactive` — push DB schema changes with confirmation prompts (for careful review before applying)
 - Required env: `DATABASE_URL` — Postgres connection string (auto-provisioned)
+
+## Fresh Environment Setup
+
+After cloning or resetting the database, run these commands in order:
+
+```bash
+pnpm install
+pnpm --filter @workspace/db run push
+```
+
+This applies the full schema (all tables and columns) without interactive prompts. The post-merge hook runs these steps automatically after every task merge.
 
 ## Stack
 

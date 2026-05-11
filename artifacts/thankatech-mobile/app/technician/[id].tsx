@@ -81,6 +81,7 @@ function BookJobModal({
   customerId,
   onClose,
   onSuccess,
+  onGoToDashboard,
 }: {
   visible: boolean;
   techName: string;
@@ -88,8 +89,11 @@ function BookJobModal({
   customerId: number;
   onClose: () => void;
   onSuccess: () => void;
+  onGoToDashboard: () => void;
 }) {
   const colors = useColors();
+  const [step, setStep] = useState<"form" | "confirmation">("form");
+  const [confirmedTitle, setConfirmedTitle] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState(defaultScheduledDate);
@@ -97,10 +101,16 @@ function BookJobModal({
 
   const { mutateAsync: createJob } = useCreateJob();
 
-  const handleClose = () => {
+  const resetForm = () => {
     setTitle("");
     setDescription("");
     setScheduledDate(defaultScheduledDate());
+    setStep("form");
+    setConfirmedTitle("");
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
   };
 
@@ -117,10 +127,12 @@ function BookJobModal({
           ...(scheduledDate ? { scheduledDate: new Date(scheduledDate).toISOString() } : {}),
         },
       });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setConfirmedTitle(title.trim());
       setTitle("");
       setDescription("");
       setScheduledDate(defaultScheduledDate());
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStep("confirmation");
       onSuccess();
     } catch {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -134,6 +146,16 @@ function BookJobModal({
     }
   };
 
+  const handleGoToDashboard = () => {
+    resetForm();
+    onGoToDashboard();
+  };
+
+  const handleStayHere = () => {
+    resetForm();
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -145,122 +167,200 @@ function BookJobModal({
         style={styles.modalOverlay}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={handleClose} />
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={step === "form" ? handleClose : undefined} />
         <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
           {/* Handle */}
           <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
 
-          {/* Header */}
-          <View style={styles.sheetHeader}>
-            <View>
-              <Text style={[styles.sheetTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
-                Book a Job
+          {step === "confirmation" ? (
+            /* ── Confirmation screen ── */
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetBody} contentContainerStyle={styles.confirmationContent}>
+              {/* Checkmark */}
+              <View style={[styles.confirmIconWrap, { backgroundColor: colors.secondary + "20" }]}>
+                <Ionicons name="checkmark-circle" size={52} color={colors.secondary} />
+              </View>
+
+              <Text style={[styles.confirmTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+                Request Sent!
               </Text>
-              <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                with {techName}
+              <Text style={[styles.confirmSubtitle, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                Your booking request is on its way to {techName}.
               </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.closeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={handleClose}
-            >
-              <Ionicons name="close" size={20} color={colors.foreground} />
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={styles.sheetBody}
-          >
-            {/* Title */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
-              What do you need done? *
-            </Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: title ? colors.primary : colors.border,
-                  color: colors.foreground,
-                  fontFamily: "Inter_400Regular",
-                },
-              ]}
-              placeholder="e.g. Fix kitchen faucet leak"
-              placeholderTextColor={colors.mutedForeground}
-              value={title}
-              onChangeText={setTitle}
-              returnKeyType="next"
-              testID="book-job-title-input"
-            />
-
-            {/* Description */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold", marginTop: 16 }]}>
-              Description (optional)
-            </Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: description ? colors.primary : colors.border,
-                  color: colors.foreground,
-                  fontFamily: "Inter_400Regular",
-                },
-              ]}
-              placeholder="Add any details — what broke, when you need it done, any special instructions..."
-              placeholderTextColor={colors.mutedForeground}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              testID="book-job-description-input"
-            />
-
-            {/* Scheduled Date */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold", marginTop: 16 }]}>
-              Preferred date
-            </Text>
-            <View style={[styles.dateRow, { backgroundColor: colors.card, borderColor: scheduledDate ? colors.primary : colors.border }]}>
-              <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
-              <TextInput
-                style={[
-                  styles.dateInput,
-                  { color: colors.foreground, fontFamily: "Inter_400Regular" },
-                ]}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.mutedForeground}
-                value={scheduledDate}
-                onChangeText={setScheduledDate}
-                keyboardType="numbers-and-punctuation"
-                testID="book-job-date-input"
-              />
-            </View>
-
-            {/* Submit */}
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                { backgroundColor: title.trim() ? colors.primary : colors.muted },
-              ]}
-              onPress={handleSubmit}
-              disabled={!title.trim() || submitting}
-              testID="book-job-submit-button"
-            >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="briefcase-outline" size={18} color="#fff" />
-                  <Text style={[styles.submitBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-                    Request Job
+              {/* Details card */}
+              <View style={[styles.confirmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.confirmRow}>
+                  <Text style={[styles.confirmRowLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                    Service
                   </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
+                  <Text style={[styles.confirmRowValue, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    {confirmedTitle}
+                  </Text>
+                </View>
+                <View style={[styles.confirmDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.confirmRow}>
+                  <Text style={[styles.confirmRowLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                    Technician
+                  </Text>
+                  <Text style={[styles.confirmRowValue, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    {techName}
+                  </Text>
+                </View>
+                <View style={[styles.confirmDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.confirmRow}>
+                  <Text style={[styles.confirmRowLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                    Status
+                  </Text>
+                  <View style={[styles.pendingBadge, { backgroundColor: colors.primary + "20" }]}>
+                    <Ionicons name="time-outline" size={13} color={colors.primary} />
+                    <Text style={[styles.pendingBadgeText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>
+                      Pending review
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.confirmWaiting, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                  Waiting for technician to accept your request.
+                </Text>
+              </View>
+
+              {/* Actions */}
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: colors.secondary }]}
+                onPress={handleGoToDashboard}
+                testID="confirmation-go-to-dashboard"
+              >
+                <Ionicons name="grid-outline" size={18} color="#fff" />
+                <Text style={[styles.submitBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+                  Go to Dashboard
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.stayBtn, { borderColor: colors.border }]}
+                onPress={handleStayHere}
+                testID="confirmation-stay-here"
+              >
+                <Text style={[styles.stayBtnText, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                  Stay here
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          ) : (
+            /* ── Booking form ── */
+            <>
+              {/* Header */}
+              <View style={styles.sheetHeader}>
+                <View>
+                  <Text style={[styles.sheetTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+                    Book a Job
+                  </Text>
+                  <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    with {techName}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.closeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={handleClose}
+                >
+                  <Ionicons name="close" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={styles.sheetBody}
+              >
+                {/* Title */}
+                <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                  What do you need done? *
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: title ? colors.primary : colors.border,
+                      color: colors.foreground,
+                      fontFamily: "Inter_400Regular",
+                    },
+                  ]}
+                  placeholder="e.g. Fix kitchen faucet leak"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={title}
+                  onChangeText={setTitle}
+                  returnKeyType="next"
+                  testID="book-job-title-input"
+                />
+
+                {/* Description */}
+                <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold", marginTop: 16 }]}>
+                  Description (optional)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textArea,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: description ? colors.primary : colors.border,
+                      color: colors.foreground,
+                      fontFamily: "Inter_400Regular",
+                    },
+                  ]}
+                  placeholder="Add any details — what broke, when you need it done, any special instructions..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  testID="book-job-description-input"
+                />
+
+                {/* Scheduled Date */}
+                <Text style={[styles.fieldLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold", marginTop: 16 }]}>
+                  Preferred date
+                </Text>
+                <View style={[styles.dateRow, { backgroundColor: colors.card, borderColor: scheduledDate ? colors.primary : colors.border }]}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.mutedForeground} />
+                  <TextInput
+                    style={[
+                      styles.dateInput,
+                      { color: colors.foreground, fontFamily: "Inter_400Regular" },
+                    ]}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={scheduledDate}
+                    onChangeText={setScheduledDate}
+                    keyboardType="numbers-and-punctuation"
+                    testID="book-job-date-input"
+                  />
+                </View>
+
+                {/* Submit */}
+                <TouchableOpacity
+                  style={[
+                    styles.submitBtn,
+                    { backgroundColor: title.trim() ? colors.primary : colors.muted },
+                  ]}
+                  onPress={handleSubmit}
+                  disabled={!title.trim() || submitting}
+                  testID="book-job-submit-button"
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="briefcase-outline" size={18} color="#fff" />
+                      <Text style={[styles.submitBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+                        Request Job
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -277,7 +377,6 @@ export default function TechnicianProfileScreen() {
   const queryClient = useQueryClient();
 
   const [bookingVisible, setBookingVisible] = useState(false);
-  const [bookedSuccess, setBookedSuccess] = useState(false);
 
   const { data: tech, isLoading: techLoading } = useGetTechnician(techId);
   const { data: wall, isLoading: wallLoading } = useGetTechnicianWallOfThanks(techId);
@@ -288,10 +387,12 @@ export default function TechnicianProfileScreen() {
   const isCustomer = profile?.userType === "customer";
 
   const handleBookSuccess = async () => {
-    setBookingVisible(false);
-    setBookedSuccess(true);
     await queryClient.invalidateQueries({ queryKey: getListJobsQueryKey() });
-    setTimeout(() => setBookedSuccess(false), 3000);
+  };
+
+  const handleGoToDashboard = () => {
+    setBookingVisible(false);
+    router.push("/dashboard/customer" as never);
   };
 
   if (techLoading) {
@@ -356,10 +457,7 @@ export default function TechnicianProfileScreen() {
         {isCustomer && (
           <TouchableOpacity
             style={[styles.bookBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setBookedSuccess(false);
-              setBookingVisible(true);
-            }}
+            onPress={() => setBookingVisible(true)}
             testID="book-tech-button"
           >
             <Ionicons name="briefcase-outline" size={18} color="#fff" />
@@ -367,16 +465,6 @@ export default function TechnicianProfileScreen() {
               Book this Tech
             </Text>
           </TouchableOpacity>
-        )}
-
-        {/* Success confirmation */}
-        {bookedSuccess && (
-          <View style={[styles.successBanner, { backgroundColor: colors.secondary + "20", borderColor: colors.secondary + "40" }]}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.secondary} />
-            <Text style={[styles.successText, { color: colors.secondary, fontFamily: "Inter_500Medium" }]}>
-              Job request sent! Check your dashboard.
-            </Text>
-          </View>
         )}
       </View>
 
@@ -457,6 +545,7 @@ export default function TechnicianProfileScreen() {
           customerId={profile.profileId}
           onClose={() => setBookingVisible(false)}
           onSuccess={handleBookSuccess}
+          onGoToDashboard={handleGoToDashboard}
         />
       )}
     </View>
@@ -503,17 +592,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   bookBtnText: { color: "#fff", fontSize: 16 },
-  successBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  successText: { fontSize: 14 },
   statsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 20, marginBottom: 28 },
   statCard: {
     flex: 1,
@@ -638,4 +716,57 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   submitBtnText: { color: "#fff", fontSize: 17 },
+  // Confirmation step
+  confirmationContent: {
+    alignItems: "center",
+    paddingBottom: 8,
+  },
+  confirmIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  confirmTitle: { fontSize: 26, marginBottom: 8, textAlign: "center" },
+  confirmSubtitle: { fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
+  confirmCard: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 24,
+  },
+  confirmRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  confirmRowLabel: { fontSize: 13 },
+  confirmRowValue: { fontSize: 14, flexShrink: 1, textAlign: "right", marginLeft: 8 },
+  confirmDivider: { height: 1 },
+  pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  pendingBadgeText: { fontSize: 12 },
+  confirmWaiting: { fontSize: 12, marginTop: 10 },
+  stayBtn: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  stayBtnText: { fontSize: 15 },
 });

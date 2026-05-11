@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import {
   useListJobs,
   useListThankMessages,
@@ -25,11 +28,49 @@ import {
   useListRewards,
   useRedeemPoints,
   useUpdateJob,
+  useRegisterPushToken,
   getGetPointsQueryKey,
   getGetPointTransactionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+async function requestAndGetPushToken(): Promise<string | null> {
+  if (Platform.OS === "web") return null;
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== "granted") return null;
+
+  try {
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+    return tokenData.data;
+  } catch {
+    return null;
+  }
+}
 
 const STATUS_FILTERS = ["all", "pending", "in_progress", "completed"];
 
@@ -405,6 +446,29 @@ export default function CustomerDashboard() {
 
   const { data: profileData } = useGetMyProfile();
   const profile = profileData?.profile;
+  const { mutate: registerToken } = useRegisterPushToken();
+
+  // Register push token so customers receive booking status notifications.
+  useEffect(() => {
+    if (!profile?.profileId || Platform.OS === "web") return;
+
+    (async () => {
+      try {
+        const stored = await SecureStore.getItemAsync("customer_push_notification_token");
+        if (stored) {
+          registerToken({ data: { token: stored } });
+          return;
+        }
+        const token = await requestAndGetPushToken();
+        if (token) {
+          await SecureStore.setItemAsync("customer_push_notification_token", token);
+          registerToken({ data: { token } });
+        }
+      } catch {
+        // Non-fatal — notification opt-in failure should not block the dashboard.
+      }
+    })();
+  }, [profile?.profileId]);
 
   const jobsParams = {
     ...(profile?.profileId ? { customerId: profile.profileId } : {}),

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { jobsTable, profilesTable, techniciansTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { jobsTable, profilesTable, techniciansTable, pushTokensTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -163,12 +163,96 @@ router.patch("/jobs/:id", async (req, res) => {
       .set(updates)
       .where(eq(jobsTable.id, id))
       .returning();
+
+    // Fire push notification to the customer only on the pending → confirmed/declined transition.
+    const newStatus = updates.status;
+    if (
+      existing.status === "pending" &&
+      (newStatus === "confirmed" || newStatus === "declined")
+    ) {
+      sendJobStatusNotification(
+        job.customerId,
+        job.title,
+        job.technicianName,
+        newStatus,
+      ).catch((err) =>
+        req.log.warn({ err, jobId: job.id }, "Failed to send job status push notification"),
+      );
+    }
+
     return res.json(formatJob(job));
   } catch (err) {
     req.log.error({ err }, "Error updating job");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+async function sendJobStatusNotification(
+  customerId: number,
+  jobTitle: string,
+  technicianName: string,
+  newStatus: "confirmed" | "declined",
+): Promise<void> {
+  const tokens = await db
+    .select({ token: pushTokensTable.token })
+    .from(pushTokensTable)
+    .where(eq(pushTokensTable.profileId, customerId));
+  if (tokens.length === 0) return;
+
+  const isConfirmed = newStatus === "confirmed";
+  const title = isConfirmed ? "Booking confirmed! ✅" : "Booking declined";
+  const body = isConfirmed
+    ? `${technicianName} accepted your request for "${jobTitle}".`
+    : `${technicianName} is unavailable for "${jobTitle}". You can book another technician.`;
+
+  const messages = tokens.map(({ token }) => ({
+    to: token,
+    sound: "default" as const,
+    title,
+    body,
+    data: { jobStatus: newStatus },
+  }));
+
+  try {
+    const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(messages),
+    });
+
+    if (pushRes.ok) {
+      const json = (await pushRes.json()) as {
+        data?: Array<{ status: string; details?: { error?: string } }>;
+      };
+      const staleTokens: string[] = [];
+      (json.data ?? []).forEach((ticket, i) => {
+        if (
+          ticket.status === "error" &&
+          ticket.details?.error === "DeviceNotRegistered"
+        ) {
+          const staleToken = tokens[i]?.token;
+          if (staleToken) staleTokens.push(staleToken);
+        }
+      });
+      if (staleTokens.length > 0) {
+        await db
+          .delete(pushTokensTable)
+          .where(
+            and(
+              eq(pushTokensTable.profileId, customerId),
+              sql`${pushTokensTable.token} = ANY(${staleTokens})`,
+            ),
+          );
+      }
+    }
+  } catch {
+    // Non-fatal — notification failure must not break the job update response.
+  }
+}
 
 function formatJob(j: typeof jobsTable.$inferSelect) {
   return {

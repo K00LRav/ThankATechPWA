@@ -593,6 +593,62 @@ paths:
         "401":
           description: Unauthorized
 
+  /thanks/{id}:
+    get:
+      operationId: getThankMessage
+      tags: [thanks]
+      summary: Get a single thank message by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        "200":
+          description: Thank message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThankMessage"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /stripe/retry-payment:
+    post:
+      operationId: retryStripePayment
+      tags: [stripe]
+      summary: Create a new PaymentIntent to retry a failed tip payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripeRetryPaymentInput"
+      responses:
+        "200":
+          description: New payment intent created for retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripePaymentIntentResult"
+        "400":
+          description: Invalid input or payment not in failed state
+        "401":
+          description: Unauthorized
+        "402":
+          description: Technician has not completed Stripe Connect onboarding
+        "403":
+          description: Forbidden
+        "404":
+          description: Thank message not found
+
   /stripe/payment-intent:
     post:
       operationId: createStripePaymentIntent
@@ -1240,6 +1296,13 @@ components:
       properties:
         url:
           type: string
+
+    StripeRetryPaymentInput:
+      type: object
+      required: [thankMessageId]
+      properties:
+        thankMessageId:
+          type: integer
 
     StripePaymentIntentInput:
       type: object

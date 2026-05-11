@@ -84,10 +84,10 @@ export function CustomerDashboard() {
 
   const availableRewards = rewards?.filter(r => r.category === "all" || r.category === "customer") ?? [];
 
-  const failedPaymentJobIds = new Set(
+  const retryableByJobId = new Map(
     (thankMessages ?? [])
       .filter(t => t.paymentStatus === "failed")
-      .map(t => t.jobId)
+      .map(t => [t.jobId, { thankMessageId: t.id }])
   );
 
   async function handleRedeem(rewardId: string) {
@@ -245,7 +245,8 @@ export function CustomerDashboard() {
           ) : (
             <div className="space-y-4">
               {jobs?.map(job => {
-                const hasFailedPayment = failedPaymentJobIds.has(job.id);
+                const retryable = retryableByJobId.get(job.id);
+                const hasRetryable = retryable !== undefined;
                 return (
                   <Card key={job.id} className="overflow-hidden transition-all hover:shadow-md">
                     <CardContent className="p-0">
@@ -254,11 +255,13 @@ export function CustomerDashboard() {
                           <div className="flex items-center gap-3 flex-wrap">
                             <h3 className="font-bold text-lg">{job.title}</h3>
                             <JobStatusBadge status={job.status} />
-                            {hasFailedPayment && (
-                              <Badge variant="destructive" className="flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3" />
-                                Payment failed
-                              </Badge>
+                            {hasRetryable && (
+                              <Link href={`/retry-tip/${retryable.thankMessageId}`}>
+                                <Badge variant="destructive" className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Payment failed — tap to retry
+                                </Badge>
+                              </Link>
                             )}
                           </div>
                           {job.description && (
@@ -280,20 +283,27 @@ export function CustomerDashboard() {
                               Waiting for the technician to accept your request.
                             </p>
                           )}
-                          {hasFailedPayment && (
+                          {hasRetryable && (
                             <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                              Your tip payment didn't go through. Retry below or contact support.
+                              Your tip payment didn't go through. Your thank you was delivered — retry the payment to complete your tip.
                             </p>
                           )}
                         </div>
 
-                        <div className="w-full md:w-auto">
-                          {job.status === 'completed' ? (
+                        <div className="w-full md:w-auto flex flex-col gap-2">
+                          {job.status === 'completed' && hasRetryable ? (
+                            <Button asChild className="w-full md:w-auto rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-sm" size="lg">
+                              <Link href={`/retry-tip/${retryable.thankMessageId}`}>
+                                <AlertCircle className="mr-2 h-4 w-4" />
+                                Retry tip payment
+                              </Link>
+                            </Button>
+                          ) : job.status === 'completed' ? (
                             <Button asChild className="w-full md:w-auto rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm" size="lg">
                               <Link href={`/thank/${job.id}`}>
                                 <Heart className="mr-2 h-4 w-4" fill="currentColor" />
-                                {hasFailedPayment ? "Retry Thank You" : "Say Thank You"}
+                                Say Thank You
                               </Link>
                             </Button>
                           ) : job.status === 'declined' ? (

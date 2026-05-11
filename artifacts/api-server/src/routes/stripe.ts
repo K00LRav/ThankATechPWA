@@ -123,6 +123,120 @@ router.get("/stripe/connect/status", async (req, res) => {
   }
 });
 
+/**
+ * POST /stripe/retry-payment
+ * Creates a fresh PaymentIntent for a thank message whose previous payment failed.
+ * The existing thank message (message already sent) is reused — no new message is created.
+ */
+router.post("/stripe/retry-payment", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const { thankMessageId } = req.body as { thankMessageId: number };
+
+    if (!thankMessageId) {
+      return res.status(400).json({ error: "thankMessageId is required" });
+    }
+
+    const [profile] = await db
+      .select()
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, req.user.id));
+
+    if (!profile) {
+      return res.status(403).json({ error: "Profile not found" });
+    }
+
+    const [thankMessage] = await db
+      .select()
+      .from(thankMessagesTable)
+      .where(eq(thankMessagesTable.id, thankMessageId));
+
+    if (!thankMessage || thankMessage.customerId !== profile.id) {
+      return res.status(403).json({ error: "Thank message not found or not owned by you" });
+    }
+
+    // Only failed payments can be retried. Pending means a Stripe PI is still active —
+    // creating another one without canceling the existing one risks a double charge.
+    if (thankMessage.paymentStatus !== "failed") {
+      return res.status(400).json({
+        error: `Cannot retry: payment status is '${thankMessage.paymentStatus}'. Only payments with a 'failed' status can be retried.`,
+      });
+    }
+
+    const tipAmount = parseFloat(thankMessage.tipAmount ?? "0");
+    if (tipAmount <= 0) {
+      return res.status(400).json({ error: "This thank message has no tip to charge" });
+    }
+
+    const amountCents = Math.round(tipAmount * 100);
+    if (amountCents < 50) {
+      return res.status(400).json({ error: "Minimum tip is $0.50" });
+    }
+
+    const [tech] = await db
+      .select()
+      .from(techniciansTable)
+      .where(eq(techniciansTable.id, thankMessage.technicianId));
+
+    if (!tech) {
+      return res.status(404).json({ error: "Technician not found" });
+    }
+
+    if (!tech.stripeAccountId || !tech.stripeOnboardingComplete) {
+      return res.status(402).json({
+        error: "This technician has not set up their payout account yet and cannot accept tips at this time.",
+      });
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const platformFeePercent = 0.09;
+    const applicationFeeAmount = Math.round(amountCents * platformFeePercent);
+
+    // Use a time-based suffix so each retry gets a fresh idempotency key,
+    // avoiding the cached (failed) PaymentIntent from the original attempt.
+    const retryKey = `pi-thankmsg-${thankMessageId}-retry-${Date.now()}`;
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: "usd",
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          technicianId: String(thankMessage.technicianId),
+          thankMessageId: String(thankMessageId),
+          customerId: String(profile.id),
+          jobId: String(thankMessage.jobId),
+          tipAmount: String(tipAmount),
+        },
+        application_fee_amount: applicationFeeAmount,
+        transfer_data: { destination: tech.stripeAccountId },
+      },
+      { idempotencyKey: retryKey },
+    );
+
+    // Only update the stored PI id — intentionally do NOT change paymentStatus here.
+    // The status stays "failed" (or "pending" for recovery) until payment-complete or the
+    // Stripe webhook fires payment_intent.succeeded. This keeps the "payment failed" badge
+    // visible on the dashboard the entire time the customer is filling in the payment form,
+    // so if they abandon mid-retry they can still find their way back.
+    await db
+      .update(thankMessagesTable)
+      .set({ stripePaymentIntentId: paymentIntent.id })
+      .where(eq(thankMessagesTable.id, thankMessageId));
+
+    return res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      connectedToStripe: true,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error creating retry payment intent");
+    return res.status(500).json({ error: "Failed to create retry payment intent" });
+  }
+});
+
 router.post("/stripe/payment-intent", async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });

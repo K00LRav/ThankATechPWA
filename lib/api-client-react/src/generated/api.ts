@@ -50,6 +50,7 @@ import type {
   StripePaymentCompleteResult,
   StripePaymentIntentInput,
   StripePaymentIntentResult,
+  StripeRetryPaymentInput,
   Technician,
   TechnicianEarnings,
   TechnicianInput,
@@ -2442,6 +2443,179 @@ export function useGetStripeConnectStatus<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get a single thank message by ID
+ */
+export const getGetThankMessageUrl = (id: number) => {
+  return `/api/thanks/${id}`;
+};
+
+export const getThankMessage = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ThankMessage> => {
+  return customFetch<ThankMessage>(getGetThankMessageUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThankMessageQueryKey = (id: number) => {
+  return [`/api/thanks/${id}`] as const;
+};
+
+export const getGetThankMessageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThankMessage>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThankMessage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThankMessageQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThankMessage>>> = ({
+    signal,
+  }) => getThankMessage(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThankMessage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThankMessageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThankMessage>>
+>;
+export type GetThankMessageQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single thank message by ID
+ */
+
+export function useGetThankMessage<
+  TData = Awaited<ReturnType<typeof getThankMessage>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThankMessage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThankMessageQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new PaymentIntent to retry a failed tip payment
+ */
+export const getRetryStripePaymentUrl = () => {
+  return `/api/stripe/retry-payment`;
+};
+
+export const retryStripePayment = async (
+  stripeRetryPaymentInput: StripeRetryPaymentInput,
+  options?: RequestInit,
+): Promise<StripePaymentIntentResult> => {
+  return customFetch<StripePaymentIntentResult>(getRetryStripePaymentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stripeRetryPaymentInput),
+  });
+};
+
+export const getRetryStripePaymentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryStripePayment>>,
+    TError,
+    { data: BodyType<StripeRetryPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryStripePayment>>,
+  TError,
+  { data: BodyType<StripeRetryPaymentInput> },
+  TContext
+> => {
+  const mutationKey = ["retryStripePayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryStripePayment>>,
+    { data: BodyType<StripeRetryPaymentInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return retryStripePayment(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryStripePaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryStripePayment>>
+>;
+export type RetryStripePaymentMutationBody = BodyType<StripeRetryPaymentInput>;
+export type RetryStripePaymentMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a new PaymentIntent to retry a failed tip payment
+ */
+export const useRetryStripePayment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryStripePayment>>,
+    TError,
+    { data: BodyType<StripeRetryPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryStripePayment>>,
+  TError,
+  { data: BodyType<StripeRetryPaymentInput> },
+  TContext
+> => {
+  return useMutation(getRetryStripePaymentMutationOptions(options));
+};
 
 /**
  * @summary Create a Stripe PaymentIntent for a tip

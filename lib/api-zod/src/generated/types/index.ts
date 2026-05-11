@@ -43,6 +43,7 @@ export * from "./stripePaymentCompleteInput";
 export * from "./stripePaymentCompleteResult";
 export * from "./stripePaymentIntentInput";
 export * from "./stripePaymentIntentResult";
+export * from "./stripeRetryPaymentInput";
 export * from "./technician";
 export * from "./technicianEarningEntry";
 export * from "./technicianEarnings";

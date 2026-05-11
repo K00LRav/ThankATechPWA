@@ -276,6 +276,10 @@ export interface StripeDashboardLink {
   url: string;
 }
 
+export interface StripeRetryPaymentInput {
+  thankMessageId: number;
+}
+
 export interface StripePaymentIntentInput {
   thankMessageId: number;
   amount: number;

@@ -12,6 +12,7 @@ import { CustomerDashboard } from "@/pages/customer-dashboard";
 import { TechnicianDashboard } from "@/pages/technician-dashboard";
 import { ThankFlow } from "@/pages/thank-flow";
 import { Login, Onboard } from "@/pages/login";
+import { RetryTip } from "@/pages/retry-tip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,11 @@ function Router() {
           <Route path="/thank/:jobId">
             <ProtectedRoute requireProfile requireUserType="customer">
               <ThankFlow />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/retry-tip/:thankMessageId">
+            <ProtectedRoute requireProfile requireUserType="customer">
+              <RetryTip />
             </ProtectedRoute>
           </Route>
           <Route path="/login" component={Login} />

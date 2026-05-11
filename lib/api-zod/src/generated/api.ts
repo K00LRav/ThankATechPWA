@@ -483,6 +483,50 @@ export const GetStripeConnectStatusResponse = zod.object({
 });
 
 /**
+ * @summary Get a single thank message by ID
+ */
+export const GetThankMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetThankMessageHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetThankMessageResponse = zod.object({
+  id: zod.number(),
+  jobId: zod.number(),
+  customerId: zod.number(),
+  customerName: zod.string().optional(),
+  technicianId: zod.number(),
+  technicianName: zod.string().optional(),
+  technicianAvatar: zod.string().nullish(),
+  message: zod.string(),
+  tipAmount: zod.number(),
+  paymentStatus: zod
+    .string()
+    .describe("Payment status of the tip (none, pending, succeeded, failed)"),
+  photoUrl: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Create a new PaymentIntent to retry a failed tip payment
+ */
+export const RetryStripePaymentBody = zod.object({
+  thankMessageId: zod.number(),
+});
+
+export const RetryStripePaymentResponse = zod.object({
+  clientSecret: zod.string(),
+  paymentIntentId: zod.string(),
+  connectedToStripe: zod.boolean(),
+});
+
+/**
  * @summary Create a Stripe PaymentIntent for a tip
  */
 export const CreateStripePaymentIntentBody = zod.object({

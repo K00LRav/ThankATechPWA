@@ -167,6 +167,42 @@ router.get("/thanks/recent", async (req, res) => {
   }
 });
 
+router.get("/thanks/:id", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+
+    const [thank] = await db
+      .select()
+      .from(thankMessagesTable)
+      .where(eq(thankMessagesTable.id, id));
+
+    if (!thank) {
+      res.status(404).json({ error: "Thank message not found" });
+      return;
+    }
+
+    const profileId = await getProfileId(req.user.id);
+    if (profileId === null || thank.customerId !== profileId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    return res.json(formatThank(thank));
+  } catch (err) {
+    req.log.error({ err }, "Error fetching thank message");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 async function sendThankNotification(
   technicianId: number,
   customerName: string,

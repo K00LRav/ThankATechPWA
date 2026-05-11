@@ -17,10 +17,10 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: profileEnvelope, isLoading: profileLoading } = useMyProfile();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const profile = profileEnvelope?.profile;
-  const isLoading = authLoading || (requireProfile && profileLoading);
+  const isLoading = authLoading || (isAuthenticated && profileLoading);
 
   useEffect(() => {
     if (authLoading) return;
@@ -28,17 +28,17 @@ export function ProtectedRoute({
       setLocation("/login");
       return;
     }
-    if (!requireProfile) return;
     if (profileLoading) return;
-    if (profileEnvelope && !profile) {
+    if (profileEnvelope && !profile && location !== "/onboard") {
       setLocation("/onboard");
       return;
     }
+    if (!requireProfile) return;
     if (requireUserType && profile && profile.userType !== requireUserType) {
       if (requireUserType === "customer") setLocation("/technician/dashboard");
       else setLocation("/customer/dashboard");
     }
-  }, [authLoading, isAuthenticated, profileLoading, profileEnvelope, profile, requireProfile, requireUserType, setLocation]);
+  }, [authLoading, isAuthenticated, profileLoading, profileEnvelope, profile, requireProfile, requireUserType, location, setLocation]);
 
   if (isLoading) {
     return (
@@ -54,6 +54,7 @@ export function ProtectedRoute({
   }
 
   if (!isAuthenticated) return null;
+  if (profileEnvelope && !profile && location !== "/onboard") return null;
   if (requireProfile && !profile) return null;
   if (requireUserType && profile?.userType !== requireUserType) return null;
 

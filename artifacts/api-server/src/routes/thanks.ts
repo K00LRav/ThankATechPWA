@@ -130,7 +130,6 @@ router.post("/thanks", async (req, res) => {
       })
       .where(eq(techniciansTable.id, authorizedTechnicianId));
 
-    await awardPoints(profileId, 15, "thank_sent", job.id, "Sent a thank you");
     await awardPoints(authorizedTechnicianId, 80, "thank_received", job.id, "Received a thank you");
     await awardPoints(authorizedTechnicianId, 20, "job_completed", job.id, "Completed a job");
     // tip_received points (50) are awarded only after payment is confirmed (webhook: payment_intent.succeeded)

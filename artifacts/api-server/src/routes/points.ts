@@ -22,13 +22,6 @@ export const REWARDS_CATALOG: Reward[] = [
     category: "all",
   },
   {
-    id: "tip_discount_5",
-    name: "$5 Tip Discount Voucher",
-    description: "Get $5 off your next tip when sending a thank you. Applied automatically at checkout.",
-    cost: 250,
-    category: "customer",
-  },
-  {
     id: "featured_profile",
     name: "Featured Profile Boost",
     description: "Get featured at the top of the Browse page for 7 days, increasing your visibility to customers.",

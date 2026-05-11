@@ -56,7 +56,7 @@ const JOB_STEPS: { key: JobStatus | "thanked"; label: string; icon: React.ReactN
 const STATUS_STEP_INDEX: Record<string, number> = {
   pending:   0,
   confirmed: 1,
-  completed: 3,
+  completed: 2,
   thanked:   3,
 };
 
@@ -150,6 +150,10 @@ export function CustomerDashboard() {
     (thankMessages ?? [])
       .filter(t => t.paymentStatus === "failed")
       .map(t => [t.jobId, { thankMessageId: t.id }])
+  );
+
+  const thankedByJobId = new Map(
+    (thankMessages ?? []).map(t => [t.jobId, { thankMessageId: t.id, technicianId: t.technicianId }])
   );
 
   async function handleRedeem(rewardId: string) {
@@ -309,6 +313,9 @@ export function CustomerDashboard() {
               {jobs?.map(job => {
                 const retryable = retryableByJobId.get(job.id);
                 const hasRetryable = retryable !== undefined;
+                const thanked = thankedByJobId.get(job.id);
+                const hasThanked = thanked !== undefined;
+                const timelineStatus = job.status === "completed" && hasThanked ? "thanked" : job.status;
                 return (
                   <Card key={job.id} className="overflow-hidden transition-all hover:shadow-md">
                     <CardContent className="p-0">
@@ -317,6 +324,12 @@ export function CustomerDashboard() {
                           <div className="flex items-center gap-3 flex-wrap">
                             <h3 className="font-bold text-lg">{job.title}</h3>
                             <JobStatusBadge status={job.status} />
+                            {job.status === "completed" && hasThanked && (
+                              <Badge className="bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/40 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Thanks sent
+                              </Badge>
+                            )}
                             {hasRetryable && (
                               <Link href={`/retry-tip/${retryable.thankMessageId}`}>
                                 <Badge variant="destructive" className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
@@ -352,7 +365,7 @@ export function CustomerDashboard() {
                             </p>
                           )}
                           {(job.status === "pending" || job.status === "confirmed" || job.status === "completed") && (
-                            <JobProgressTimeline status={job.status} />
+                            <JobProgressTimeline status={timelineStatus} />
                           )}
                           {hasRetryable && (
                             <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
@@ -368,6 +381,13 @@ export function CustomerDashboard() {
                               <Link href={`/retry-tip/${retryable.thankMessageId}`}>
                                 <AlertCircle className="mr-2 h-4 w-4" />
                                 Retry tip payment
+                              </Link>
+                            </Button>
+                          ) : job.status === 'completed' && hasThanked ? (
+                            <Button asChild variant="outline" className="w-full md:w-auto rounded-full border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800/40 dark:text-green-400 dark:hover:bg-green-900/20" size="lg">
+                              <Link href={`/technician/${thanked.technicianId}`}>
+                                <Heart className="mr-2 h-4 w-4" fill="currentColor" />
+                                View thanks
                               </Link>
                             </Button>
                           ) : job.status === 'completed' ? (

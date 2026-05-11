@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { techniciansTable, thankMessagesTable, jobsTable } from "@workspace/db";
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { techniciansTable, thankMessagesTable, jobsTable, profilesTable } from "@workspace/db";
+import { eq, ilike, or, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -83,6 +83,79 @@ router.get("/technicians/:id/wall-of-thanks", async (req, res) => {
     return res.json(thanks.map(formatThank));
   } catch (err) {
     req.log.error({ err }, "Error getting wall of thanks");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/technicians/:id/earnings", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const id = parseInt(req.params.id);
+
+    const [profile] = await db
+      .select()
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, req.user.id));
+
+    if (!profile) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const [technician] = await db
+      .select({ id: techniciansTable.id, userId: techniciansTable.userId })
+      .from(techniciansTable)
+      .where(eq(techniciansTable.id, id));
+
+    if (!technician) {
+      return res.status(404).json({ error: "Technician not found" });
+    }
+
+    if (technician.userId !== req.user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const rows = await db
+      .select({
+        id: thankMessagesTable.id,
+        jobId: thankMessagesTable.jobId,
+        jobTitle: jobsTable.title,
+        customerName: thankMessagesTable.customerName,
+        tipAmount: thankMessagesTable.tipAmount,
+        paymentStatus: thankMessagesTable.paymentStatus,
+        createdAt: thankMessagesTable.createdAt,
+      })
+      .from(thankMessagesTable)
+      .leftJoin(jobsTable, eq(thankMessagesTable.jobId, jobsTable.id))
+      .where(
+        and(
+          eq(thankMessagesTable.technicianId, id),
+          eq(thankMessagesTable.paymentStatus, "succeeded")
+        )
+      )
+      .orderBy(sql`${thankMessagesTable.createdAt} DESC`);
+
+    const entries = rows.map(r => ({
+      id: r.id,
+      jobId: r.jobId,
+      jobTitle: r.jobTitle ?? "",
+      customerName: r.customerName ?? "",
+      tipAmount: parseFloat(r.tipAmount ?? "0"),
+      paymentStatus: r.paymentStatus ?? "succeeded",
+      createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
+    }));
+
+    const totalEarned = entries.reduce((sum, e) => sum + e.tipAmount, 0);
+
+    return res.json({
+      totalEarned: Math.round(totalEarned * 100) / 100,
+      tipCount: entries.length,
+      entries,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error fetching technician earnings");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

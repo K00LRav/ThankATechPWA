@@ -234,6 +234,23 @@ export interface EarningEntry {
   createdAt: string;
 }
 
+export interface TechnicianEarningEntry {
+  id: number;
+  jobId: number;
+  jobTitle: string;
+  customerName: string;
+  tipAmount: number;
+  /** Payment status: succeeded */
+  paymentStatus: string;
+  createdAt: string;
+}
+
+export interface TechnicianEarnings {
+  totalEarned: number;
+  tipCount: number;
+  entries: TechnicianEarningEntry[];
+}
+
 export interface StripeEarnings {
   totalEarned: number;
   tipCount: number;

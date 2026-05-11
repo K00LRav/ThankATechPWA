@@ -44,6 +44,8 @@ export * from "./stripePaymentCompleteResult";
 export * from "./stripePaymentIntentInput";
 export * from "./stripePaymentIntentResult";
 export * from "./technician";
+export * from "./technicianEarningEntry";
+export * from "./technicianEarnings";
 export * from "./technicianInput";
 export * from "./technicianStats";
 export * from "./thankMessage";

@@ -51,6 +51,7 @@ import type {
   StripePaymentIntentInput,
   StripePaymentIntentResult,
   Technician,
+  TechnicianEarnings,
   TechnicianInput,
   TechnicianStats,
   ThankMessage,
@@ -578,6 +579,94 @@ export function useGetTechnicianStats<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTechnicianStatsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get technician earnings breakdown from completed tips
+ */
+export const getGetTechnicianEarningsUrl = (id: number) => {
+  return `/api/technicians/${id}/earnings`;
+};
+
+export const getTechnicianEarnings = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TechnicianEarnings> => {
+  return customFetch<TechnicianEarnings>(getGetTechnicianEarningsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTechnicianEarningsQueryKey = (id: number) => {
+  return [`/api/technicians/${id}/earnings`] as const;
+};
+
+export const getGetTechnicianEarningsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTechnicianEarnings>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTechnicianEarnings>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTechnicianEarningsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTechnicianEarnings>>
+  > = ({ signal }) => getTechnicianEarnings(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTechnicianEarnings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTechnicianEarningsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTechnicianEarnings>>
+>;
+export type GetTechnicianEarningsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get technician earnings breakdown from completed tips
+ */
+
+export function useGetTechnicianEarnings<
+  TData = Awaited<ReturnType<typeof getTechnicianEarnings>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTechnicianEarnings>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTechnicianEarningsQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

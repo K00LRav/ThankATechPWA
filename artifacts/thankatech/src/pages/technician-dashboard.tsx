@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useGetTechnicianEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetTechnicianEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,13 @@ export function TechnicianDashboard() {
     query: {
       enabled: !!technicianId,
       queryKey: getGetStripeEarningsQueryKey(),
+    },
+  });
+
+  const { data: technicianEarnings, isLoading: isTechEarningsLoading } = useGetTechnicianEarnings(technicianId!, {
+    query: {
+      enabled: !!technicianId,
+      queryKey: getGetTechnicianEarningsQueryKey(technicianId!),
     },
   });
 
@@ -315,6 +322,79 @@ export function TechnicianDashboard() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Earnings Breakdown Table */}
+        <div className="rounded-2xl border border-secondary/20 bg-card p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-secondary/10 rounded-full flex-shrink-0">
+              <TableIcon className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Earnings Breakdown</h2>
+              <p className="text-sm text-muted-foreground">
+                Per-job tip history — totals match your Tips Earned stat above.
+              </p>
+            </div>
+          </div>
+
+          {isTechEarningsLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}
+            </div>
+          ) : technicianEarnings && technicianEarnings.entries.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground text-xs uppercase tracking-wide">
+                    <th className="pb-2 font-medium pr-4">Job</th>
+                    <th className="pb-2 font-medium pr-4">Customer</th>
+                    <th className="pb-2 font-medium pr-4">Payment Date</th>
+                    <th className="pb-2 font-medium pr-4 text-right">Tip</th>
+                    <th className="pb-2 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {technicianEarnings.entries.map(entry => (
+                    <tr key={entry.id} className="py-2">
+                      <td className="py-3 pr-4 font-medium truncate max-w-[160px]">
+                        {entry.jobTitle || `Job #${entry.jobId}`}
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground truncate max-w-[120px]">
+                        {entry.customerName}
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground whitespace-nowrap">
+                        {new Date(entry.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="py-3 pr-4 text-right font-bold text-secondary whitespace-nowrap">
+                        ${entry.tipAmount.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="inline-flex items-center rounded-full bg-secondary/10 px-2.5 py-0.5 text-xs font-medium text-secondary">
+                          {entry.paymentStatus === "succeeded" ? "Paid" : entry.paymentStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border">
+                    <td colSpan={3} className="pt-3 text-sm font-semibold text-muted-foreground">Total</td>
+                    <td className="pt-3 text-right font-bold text-secondary text-sm">
+                      ${technicianEarnings.totalEarned.toFixed(2)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-muted/30 rounded-xl border border-dashed">
+              <TableIcon className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No completed tips yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Earnings appear here once customers send a tip.</p>
+            </div>
+          )}
         </div>
 
         {/* Redeem Points Section */}

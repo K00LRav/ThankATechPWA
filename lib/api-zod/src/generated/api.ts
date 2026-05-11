@@ -119,6 +119,36 @@ export const GetTechnicianStatsResponse = zod.object({
 });
 
 /**
+ * @summary Get technician earnings breakdown from completed tips
+ */
+export const GetTechnicianEarningsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetTechnicianEarningsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetTechnicianEarningsResponse = zod.object({
+  totalEarned: zod.number(),
+  tipCount: zod.number(),
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      jobId: zod.number(),
+      jobTitle: zod.string(),
+      customerName: zod.string(),
+      tipAmount: zod.number(),
+      paymentStatus: zod.string().describe("Payment status: succeeded"),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary List jobs
  */
 export const ListJobsQueryParams = zod.object({

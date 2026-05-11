@@ -10,6 +10,7 @@ import {
   ScrollView,
   Switch,
   Alert,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +27,12 @@ import {
   useRegisterPushToken,
   useUnregisterPushToken,
   useGetPointTransactions,
+  useListRewards,
+  useRedeemPoints,
+  getGetPointsQueryKey,
+  getGetPointTransactionsQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 
 Notifications.setNotificationHandler({
@@ -42,7 +48,6 @@ Notifications.setNotificationHandler({
 async function requestAndGetPushToken(): Promise<string | null> {
   if (Platform.OS === "web") return null;
 
-  // Always request permission first — do not gate on project config.
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -54,8 +59,6 @@ async function requestAndGetPushToken(): Promise<string | null> {
   if (finalStatus !== "granted") return null;
 
   try {
-    // Pass projectId when available (needed for standalone builds).
-    // In Expo Go, omitting projectId is fine — it infers one from the app.
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
       Constants.easConfig?.projectId;
@@ -68,6 +71,14 @@ async function requestAndGetPushToken(): Promise<string | null> {
     return null;
   }
 }
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
+
+const REWARD_ICON: Record<string, IoniconsName> = {
+  appreciation_star: "star",
+  tip_discount_5: "pricetag-outline",
+  featured_profile: "trending-up-outline",
+};
 
 function StatusBadge({ status }: { status: string }) {
   const colors = useColors();
@@ -120,12 +131,131 @@ function ThankPreviewCard({ item }: { item: {
   );
 }
 
+function RedeemModal({
+  visible,
+  onClose,
+  balance,
+  profileId,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  balance: number;
+  profileId: number;
+}) {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const { data: rewards } = useListRewards();
+  const redeemMutation = useRedeemPoints();
+  const [redeeming, setRedeeming] = useState<string | null>(null);
+
+  const availableRewards = rewards?.filter(r => r.category === "all" || r.category === "technician") ?? [];
+
+  async function handleRedeem(rewardId: string, rewardName: string, cost: number) {
+    if (balance < cost) return;
+    setRedeeming(rewardId);
+    try {
+      const result = await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } });
+      await queryClient.invalidateQueries({ queryKey: getGetPointsQueryKey(profileId) });
+      await queryClient.invalidateQueries({ queryKey: getGetPointTransactionsQueryKey(profileId) });
+      Alert.alert(
+        "Redeemed!",
+        `${rewardName} has been applied to your account. You now have ${result.newBalance} pts.`,
+        [{ text: "Great!", onPress: onClose }]
+      );
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Redemption failed. Please try again.";
+      Alert.alert("Oops", message);
+    } finally {
+      setRedeeming(null);
+    }
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+            Redeem Points
+          </Text>
+          <TouchableOpacity onPress={onClose} style={[styles.modalCloseBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="close" size={20} color={colors.foreground} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.balancePill, { backgroundColor: colors.primary + "15" }]}>
+          <Ionicons name="star" size={16} color={colors.primary} />
+          <Text style={[styles.balancePillText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+            {balance} pts available
+          </Text>
+        </View>
+
+        <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+          {availableRewards.map(reward => {
+            const canAfford = balance >= reward.cost;
+            const isRedeeming = redeeming === reward.id;
+            const iconName = REWARD_ICON[reward.id] ?? "gift-outline";
+
+            return (
+              <View
+                key={reward.id}
+                style={[
+                  styles.rewardCard,
+                  { backgroundColor: colors.card, borderColor: canAfford ? colors.primary + "40" : colors.border, opacity: canAfford ? 1 : 0.55 },
+                ]}
+              >
+                <View style={[styles.rewardIconWrap, { backgroundColor: colors.primary + "15" }]}>
+                  <Ionicons name={iconName} size={22} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rewardName, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                    {reward.name}
+                  </Text>
+                  <Text style={[styles.rewardDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    {reward.description}
+                  </Text>
+                  <View style={styles.rewardFooter}>
+                    <Text style={[styles.rewardCost, { color: canAfford ? colors.primary : colors.mutedForeground, fontFamily: "Inter_700Bold" }]}>
+                      {reward.cost} pts
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.redeemBtn,
+                        { backgroundColor: canAfford ? colors.primary : colors.border },
+                      ]}
+                      onPress={() => handleRedeem(reward.id, reward.name, reward.cost)}
+                      disabled={!canAfford || !!redeeming}
+                    >
+                      {isRedeeming ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={[styles.redeemBtnText, { fontFamily: "Inter_600SemiBold", color: canAfford ? "#fff" : colors.mutedForeground }]}>
+                          {canAfford ? "Redeem" : "Not enough"}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 export default function TechnicianDashboard() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const [refreshing, setRefreshing] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
   const tokenRegisteredRef = useRef(false);
 
   const { data: profileData } = useGetMyProfile();
@@ -146,17 +276,12 @@ export default function TechnicianDashboard() {
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
 
-  // "notifications_preference" stores "enabled" | "disabled".
-  // Absent = first-time (auto-register path).
-  // "disabled" = user explicitly opted out (never auto-register again until toggled back on).
   const NOTIF_PREF_KEY = "notifications_preference";
 
-  // Initialise toggle state from the explicit preference key on mount.
   useEffect(() => {
     if (isWeb) return;
     SecureStore.getItemAsync(NOTIF_PREF_KEY)
       .then((pref) => {
-        // If preference is set, use it directly; otherwise derive from stored token.
         if (pref !== null) {
           setNotificationsEnabled(pref === "enabled");
         } else {
@@ -172,11 +297,9 @@ export default function TechnicianDashboard() {
     if (!profile || tokenRegisteredRef.current || isWeb) return;
     tokenRegisteredRef.current = true;
 
-    // Only auto-register when the user has never set a preference ("first time")
-    // or when they have explicitly opted in. Never auto-register for "disabled".
     SecureStore.getItemAsync(NOTIF_PREF_KEY)
       .then(async (pref) => {
-        if (pref === "disabled") return; // User opted out — respect their choice.
+        if (pref === "disabled") return;
 
         const token = await requestAndGetPushToken();
         if (token) {
@@ -196,11 +319,9 @@ export default function TechnicianDashboard() {
       if (!value) {
         const stored = await SecureStore.getItemAsync("push_notification_token");
         if (stored) {
-          // Await so we confirm server-side removal before updating UI.
           await unregisterTokenAsync({ data: { token: stored } });
           await SecureStore.deleteItemAsync("push_notification_token");
         }
-        // Persist the disabled preference so auto-registration is suppressed.
         await SecureStore.setItemAsync(NOTIF_PREF_KEY, "disabled");
         setNotificationsEnabled(false);
       } else {
@@ -211,10 +332,8 @@ export default function TechnicianDashboard() {
           await SecureStore.setItemAsync(NOTIF_PREF_KEY, "enabled");
           setNotificationsEnabled(true);
         }
-        // If OS permission was denied, leave toggle off — do not persist "enabled".
       }
     } catch {
-      // Leave state as-is on error so the toggle reflects actual state.
       Alert.alert(
         "Something went wrong",
         value
@@ -237,18 +356,22 @@ export default function TechnicianDashboard() {
 
   const pendingJobs = jobs?.filter((j) => j.status === "pending" || j.status === "in_progress") ?? [];
   const recentWall = wall?.slice(0, 3) ?? [];
-  const recentTransactions = transactions
-    ? [...transactions]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 10)
-    : [];
 
   const TX_ICON: Record<string, { name: string; colorKey: "primary" | "secondary" }> = {
     thank_sent: { name: "heart-outline", colorKey: "primary" },
     thank_received: { name: "heart", colorKey: "primary" },
     job_completed: { name: "briefcase-outline", colorKey: "secondary" },
     tip_received: { name: "cash-outline", colorKey: "secondary" },
+    redemption: { name: "gift-outline", colorKey: "primary" },
   };
+
+  const recentTransactions = transactions
+    ? [...transactions]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+    : [];
+
+  const balance = points?.balance ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -300,7 +423,7 @@ export default function TechnicianDashboard() {
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="star" size={20} color={colors.primary} />
             <Text style={[styles.statValue, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
-              {points?.balance ?? 0}
+              {balance}
             </Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Points</Text>
           </View>
@@ -374,10 +497,19 @@ export default function TechnicianDashboard() {
         )}
 
         {/* Points History */}
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, { marginTop: 4 }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
             Points History
           </Text>
+          <TouchableOpacity
+            style={[styles.redeemHeaderBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setShowRedeemModal(true)}
+          >
+            <Ionicons name="gift-outline" size={14} color="#fff" />
+            <Text style={[styles.redeemHeaderBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+              Redeem
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {txLoading ? (
@@ -386,13 +518,14 @@ export default function TechnicianDashboard() {
           <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="star-outline" size={28} color={colors.mutedForeground} />
             <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              No points earned yet
+              No points activity yet
             </Text>
           </View>
         ) : (
           recentTransactions.map((tx) => {
             const meta = TX_ICON[tx.type] ?? { name: "star-outline", colorKey: "primary" as const };
             const iconColor = meta.colorKey === "secondary" ? colors.secondary : colors.primary;
+            const isNegative = tx.amount < 0;
             const date = new Date(tx.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -413,8 +546,8 @@ export default function TechnicianDashboard() {
                     {date}
                   </Text>
                 </View>
-                <Text style={[styles.txAmount, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-                  +{tx.amount} pts
+                <Text style={[styles.txAmount, { color: isNegative ? colors.destructive : colors.primary, fontFamily: "Inter_700Bold" }]}>
+                  {tx.amount > 0 ? "+" : ""}{tx.amount} pts
                 </Text>
               </View>
             );
@@ -463,6 +596,13 @@ export default function TechnicianDashboard() {
           </>
         )}
       </ScrollView>
+
+      <RedeemModal
+        visible={showRedeemModal}
+        onClose={() => setShowRedeemModal(false)}
+        balance={balance}
+        profileId={profile?.profileId ?? 0}
+      />
     </View>
   );
 }
@@ -504,6 +644,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18 },
   seeAll: { fontSize: 14 },
+  redeemHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  redeemHeaderBtnText: { color: "#fff", fontSize: 13 },
   jobCard: {
     borderRadius: 14,
     borderWidth: 1,
@@ -589,4 +738,70 @@ const styles = StyleSheet.create({
   },
   prefLabel: { fontSize: 15, marginBottom: 2 },
   prefDesc: { fontSize: 13, lineHeight: 18 },
+  modalContainer: { flex: 1 },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: { fontSize: 24 },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  balancePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  balancePillText: { fontSize: 15 },
+  modalScroll: { flex: 1 },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
+  rewardCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+    gap: 12,
+  },
+  rewardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  rewardName: { fontSize: 15, marginBottom: 4 },
+  rewardDesc: { fontSize: 13, lineHeight: 18, marginBottom: 10 },
+  rewardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rewardCost: { fontSize: 15 },
+  redeemBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 90,
+    alignItems: "center",
+  },
+  redeemBtnText: { fontSize: 14 },
 });

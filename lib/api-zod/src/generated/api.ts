@@ -301,6 +301,41 @@ export const GetPointTransactionsResponse = zod.array(
 );
 
 /**
+ * @summary Redeem points for a reward
+ */
+export const RedeemPointsParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const RedeemPointsBody = zod.object({
+  rewardId: zod.string(),
+});
+
+export const RedeemPointsResponse = zod.object({
+  success: zod.boolean(),
+  newBalance: zod.number(),
+  reward: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    description: zod.string(),
+    cost: zod.number(),
+    category: zod.string().describe("all, customer, technician"),
+  }),
+});
+
+/**
+ * @summary List available redemption rewards
+ */
+export const ListRewardsResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  cost: zod.number(),
+  category: zod.string().describe("all, customer, technician"),
+});
+export const ListRewardsResponse = zod.array(ListRewardsResponseItem);
+
+/**
  * @summary Get overall platform stats
  */
 export const GetPlatformStatsResponse = zod.object({

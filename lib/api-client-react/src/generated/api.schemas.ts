@@ -134,6 +134,25 @@ export interface PointTransaction {
   createdAt: string;
 }
 
+export interface Reward {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  /** all, customer, technician */
+  category: string;
+}
+
+export interface RedeemPointsInput {
+  rewardId: string;
+}
+
+export interface RedemptionResult {
+  success: boolean;
+  newBalance: number;
+  reward: Reward;
+}
+
 export interface PlatformStats {
   totalTechnicians: number;
   totalThanks: number;

@@ -326,6 +326,64 @@ paths:
                 items:
                   $ref: "#/components/schemas/PointTransaction"
 
+  /points/{userId}/redeem:
+    post:
+      operationId: redeemPoints
+      tags: [points]
+      summary: Redeem points for a reward
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemPointsInput"
+      responses:
+        "200":
+          description: Redemption successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedemptionResult"
+        "400":
+          description: Insufficient points or invalid reward
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /points/rewards:
+    get:
+      operationId: listRewards
+      tags: [points]
+      summary: List available redemption rewards
+      responses:
+        "200":
+          description: Available rewards catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+
   /platform/stats:
     get:
       operationId: getPlatformStats
@@ -906,6 +964,40 @@ components:
           type: string
         createdAt:
           type: string
+
+    Reward:
+      type: object
+      required: [id, name, description, cost, category]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        cost:
+          type: integer
+        category:
+          type: string
+          description: "all, customer, technician"
+
+    RedeemPointsInput:
+      type: object
+      required: [rewardId]
+      properties:
+        rewardId:
+          type: string
+
+    RedemptionResult:
+      type: object
+      required: [success, newBalance, reward]
+      properties:
+        success:
+          type: boolean
+        newBalance:
+          type: integer
+        reward:
+          $ref: "#/components/schemas/Reward"
 
     PlatformStats:
       type: object

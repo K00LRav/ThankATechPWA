@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { useListJobs, useListThankMessages, useGetPoints, useGetPointTransactions, getListJobsQueryKey, getListThankMessagesQueryKey, getGetPointsQueryKey, getGetPointTransactionsQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useListThankMessages, useGetPoints, useGetPointTransactions, useListRewards, useRedeemPoints, getListJobsQueryKey, getListThankMessagesQueryKey, getGetPointsQueryKey, getGetPointTransactionsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Gift, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Star } from "lucide-react";
+import { Heart, Gift, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Star, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 function JobStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -41,10 +44,19 @@ function JobStatusBadge({ status }: { status: string }) {
   }
 }
 
+const REWARD_ICONS: Record<string, React.ReactNode> = {
+  appreciation_star: <Star className="w-5 h-5 text-yellow-500" />,
+  tip_discount_5: <Tag className="w-5 h-5 text-green-600" />,
+  featured_profile: <TrendingUp className="w-5 h-5 text-blue-500" />,
+};
+
 export function CustomerDashboard() {
   const { data: profileEnvelope } = useMyProfile();
   const profile = profileEnvelope?.profile;
   const profileId = profile?.profileId;
+  const queryClient = useQueryClient();
+
+  const [redeeming, setRedeeming] = useState<string | null>(null);
 
   const { data: jobs, isLoading: isJobsLoading } = useListJobs(
     {},
@@ -64,11 +76,35 @@ export function CustomerDashboard() {
     query: { enabled: !!profileId, queryKey: getGetPointTransactionsQueryKey(profileId!) }
   });
 
+  const { data: rewards } = useListRewards({
+    query: { queryKey: getListRewardsQueryKey() }
+  });
+
+  const redeemMutation = useRedeemPoints();
+
+  const availableRewards = rewards?.filter(r => r.category === "all" || r.category === "customer") ?? [];
+
   const failedPaymentJobIds = new Set(
     (thankMessages ?? [])
       .filter(t => t.paymentStatus === "failed")
       .map(t => t.jobId)
   );
+
+  async function handleRedeem(rewardId: string) {
+    if (!profileId) return;
+    setRedeeming(rewardId);
+    try {
+      const result = await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } });
+      await queryClient.invalidateQueries({ queryKey: getGetPointsQueryKey(profileId) });
+      await queryClient.invalidateQueries({ queryKey: getGetPointTransactionsQueryKey(profileId) });
+      toast.success(`Redeemed: ${result.reward.name}! You now have ${result.newBalance} pts.`);
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Redemption failed. Please try again.";
+      toast.error(message);
+    } finally {
+      setRedeeming(null);
+    }
+  }
 
   if (!profileId) {
     return (
@@ -82,6 +118,8 @@ export function CustomerDashboard() {
       </div>
     );
   }
+
+  const balance = points?.balance ?? 0;
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
@@ -98,13 +136,62 @@ export function CustomerDashboard() {
             <CardContent className="p-4 flex items-center justify-between gap-4">
               <div>
                 <p className="text-primary-foreground/80 text-sm font-medium uppercase tracking-wider">ThankYou Points</p>
-                <p className="text-3xl font-bold">{isPointsLoading ? "..." : (points?.balance || 0)}</p>
+                <p className="text-3xl font-bold">{isPointsLoading ? "..." : balance}</p>
               </div>
               <Gift size={32} className="opacity-50" />
             </CardContent>
           </Card>
         </div>
 
+        {/* Redeem Points Section */}
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800/40 p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-100 dark:bg-yellow-900/40 rounded-full flex-shrink-0">
+              <Sparkles className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Redeem Points</h2>
+              <p className="text-sm text-muted-foreground">Turn your {isPointsLoading ? "..." : balance} points into real rewards.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {availableRewards.map(reward => {
+              const canAfford = balance >= reward.cost;
+              const isRedeeming = redeeming === reward.id;
+              return (
+                <div
+                  key={reward.id}
+                  className={`bg-card rounded-xl border px-4 py-4 flex items-start gap-4 transition-all ${canAfford ? "border-yellow-200 dark:border-yellow-800/40" : "opacity-60"}`}
+                >
+                  <div className="p-2 bg-muted rounded-full flex-shrink-0 mt-0.5">
+                    {REWARD_ICONS[reward.id] ?? <Gift className="w-5 h-5 text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{reward.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{reward.description}</p>
+                    <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+                      <span className={`text-sm font-bold ${canAfford ? "text-primary" : "text-muted-foreground"}`}>
+                        {reward.cost} pts
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={canAfford ? "default" : "outline"}
+                        className="rounded-full text-xs h-8"
+                        disabled={!canAfford || isRedeeming || !!redeeming}
+                        onClick={() => handleRedeem(reward.id)}
+                      >
+                        {isRedeeming ? "Redeeming..." : canAfford ? "Redeem" : "Need more pts"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Points History */}
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-primary/10 rounded-full flex-shrink-0">
@@ -112,7 +199,7 @@ export function CustomerDashboard() {
             </div>
             <div>
               <h2 className="text-lg font-bold">Points History</h2>
-              <p className="text-sm text-muted-foreground">See how you've earned your ThankYou Points.</p>
+              <p className="text-sm text-muted-foreground">See how you've earned and spent your ThankYou Points.</p>
             </div>
           </div>
 
@@ -133,14 +220,16 @@ export function CustomerDashboard() {
                       {new Date(tx.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
-                  <p className="font-bold text-primary flex-shrink-0">+{tx.amount} pts</p>
+                  <p className={`font-bold flex-shrink-0 ${tx.amount < 0 ? "text-destructive" : "text-primary"}`}>
+                    {tx.amount > 0 ? "+" : ""}{tx.amount} pts
+                  </p>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8 bg-card rounded-xl border border-dashed">
               <Star className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No points earned yet.</p>
+              <p className="text-sm text-muted-foreground">No points activity yet.</p>
               <p className="text-xs text-muted-foreground mt-1">Send a thank you to start earning points!</p>
             </div>
           )}

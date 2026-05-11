@@ -1,6 +1,7 @@
-import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, useGetPointTransactions, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetPointTransactionsQueryKey } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,20 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+const REWARD_ICONS: Record<string, React.ReactNode> = {
+  appreciation_star: <Star className="w-5 h-5 text-yellow-500" />,
+  tip_discount_5: <Tag className="w-5 h-5 text-green-600" />,
+  featured_profile: <TrendingUp className="w-5 h-5 text-blue-500" />,
+};
+
 export function TechnicianDashboard() {
   const { data: profileEnvelope } = useMyProfile();
   const profile = profileEnvelope?.profile;
   const technicianId = profile?.technicianId ?? undefined;
   const [location] = useLocation();
   const queryClient = useQueryClient();
+
+  const [redeeming, setRedeeming] = useState<string | null>(null);
 
   const { data: stats, isLoading: isStatsLoading } = useGetTechnicianStats(technicianId!, {
     query: { enabled: !!technicianId, queryKey: getGetTechnicianStatsQueryKey(technicianId!) }
@@ -55,6 +64,19 @@ export function TechnicianDashboard() {
     query: { enabled: !!profileId, queryKey: getGetPointTransactionsQueryKey(profileId!) }
   });
 
+  const { data: points, isLoading: isPointsLoading } = useGetPoints(profileId!, {
+    query: { enabled: !!profileId, queryKey: getGetPointsQueryKey(profileId!) }
+  });
+
+  const { data: rewards } = useListRewards({
+    query: { queryKey: getListRewardsQueryKey() }
+  });
+
+  const redeemMutation = useRedeemPoints();
+
+  const availableRewards = rewards?.filter(r => r.category === "all" || r.category === "technician") ?? [];
+  const balance = points?.balance ?? 0;
+
   const createOnboarding = useCreateStripeConnectOnboarding();
   const updateJob = useUpdateJob();
 
@@ -82,6 +104,22 @@ export function TechnicianDashboard() {
       else if (status === "completed") toast.success("Job marked as complete!");
     } catch {
       toast.error("Something went wrong. Please try again.");
+    }
+  }
+
+  async function handleRedeem(rewardId: string) {
+    if (!profileId) return;
+    setRedeeming(rewardId);
+    try {
+      const result = await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } });
+      await queryClient.invalidateQueries({ queryKey: getGetPointsQueryKey(profileId) });
+      await queryClient.invalidateQueries({ queryKey: getGetPointTransactionsQueryKey(profileId) });
+      toast.success(`Redeemed: ${result.reward.name}! You now have ${result.newBalance} pts.`);
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Redemption failed. Please try again.";
+      toast.error(message);
+    } finally {
+      setRedeeming(null);
     }
   }
 
@@ -279,6 +317,57 @@ export function TechnicianDashboard() {
           </div>
         </div>
 
+        {/* Redeem Points Section */}
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800/40 p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-100 dark:bg-yellow-900/40 rounded-full flex-shrink-0">
+              <Sparkles className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Redeem Points</h2>
+              <p className="text-sm text-muted-foreground">
+                You have {isPointsLoading ? "..." : balance} pts — turn them into rewards.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {availableRewards.map(reward => {
+              const canAfford = balance >= reward.cost;
+              const isRedeeming = redeeming === reward.id;
+              return (
+                <div
+                  key={reward.id}
+                  className={`bg-card rounded-xl border px-4 py-4 flex items-start gap-4 transition-all ${canAfford ? "border-yellow-200 dark:border-yellow-800/40" : "opacity-60"}`}
+                >
+                  <div className="p-2 bg-muted rounded-full flex-shrink-0 mt-0.5">
+                    {REWARD_ICONS[reward.id] ?? <Gift className="w-5 h-5 text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{reward.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{reward.description}</p>
+                    <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+                      <span className={`text-sm font-bold ${canAfford ? "text-primary" : "text-muted-foreground"}`}>
+                        {reward.cost} pts
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={canAfford ? "default" : "outline"}
+                        className="rounded-full text-xs h-8"
+                        disabled={!canAfford || isRedeeming || !!redeeming}
+                        onClick={() => handleRedeem(reward.id)}
+                      >
+                        {isRedeeming ? "Redeeming..." : canAfford ? "Redeem" : "Need more pts"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Points History */}
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-primary/10 rounded-full flex-shrink-0">
@@ -286,7 +375,7 @@ export function TechnicianDashboard() {
             </div>
             <div>
               <h2 className="text-lg font-bold">Points History</h2>
-              <p className="text-sm text-muted-foreground">A breakdown of how you've earned your ThankYou Points.</p>
+              <p className="text-sm text-muted-foreground">A breakdown of how you've earned and spent your ThankYou Points.</p>
             </div>
           </div>
 
@@ -307,14 +396,16 @@ export function TechnicianDashboard() {
                       {new Date(tx.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
-                  <p className="font-bold text-primary flex-shrink-0">+{tx.amount} pts</p>
+                  <p className={`font-bold flex-shrink-0 ${tx.amount < 0 ? "text-destructive" : "text-primary"}`}>
+                    {tx.amount > 0 ? "+" : ""}{tx.amount} pts
+                  </p>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8 bg-card rounded-xl border border-dashed">
               <Star className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No points earned yet.</p>
+              <p className="text-sm text-muted-foreground">No points activity yet.</p>
               <p className="text-xs text-muted-foreground mt-1">Complete jobs and receive thanks to start earning points!</p>
             </div>
           )}

@@ -87,7 +87,7 @@ function PaymentForm({
       <div className="bg-card rounded-2xl border p-5 shadow-sm">
         <p className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
           <Lock className="w-4 h-4" />
-          Secure payment — 100% goes to {techName.split(" ")[0]}
+          Secure payment — 91% goes to {techName.split(" ")[0]}
         </p>
         <PaymentElement />
       </div>
@@ -434,7 +434,7 @@ export function ThankFlow() {
                 </motion.div>
                 <h2 className="text-2xl font-serif font-bold">Add a tip?</h2>
                 <p className="text-muted-foreground text-sm">
-                  100% goes to {techName.split(" ")[0]}. Completely optional.
+                  Show your appreciation. Completely optional.
                 </p>
               </div>
 
@@ -467,6 +467,38 @@ export function ThankFlow() {
                   className="w-full h-12 pl-8 pr-4 rounded-xl border-2 border-border bg-card focus:border-primary outline-none text-base transition-colors"
                 />
               </div>
+
+              {finalTip > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-secondary/5 border border-secondary/20 rounded-xl px-4 py-3 space-y-2"
+                >
+                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide">Tip breakdown</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {techName.split(" ")[0]} receives <span className="text-muted-foreground/70">(91%)</span>
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      ${(finalTip * 0.91).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Platform fee <span className="text-muted-foreground/70">(9%)</span>
+                    </span>
+                    <span className="font-medium text-foreground">
+                      ${(finalTip * 0.09).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="border-t border-secondary/20 pt-2 flex justify-between text-sm font-semibold">
+                    <span>Total charged</span>
+                    <span>${finalTip.toFixed(2)}</span>
+                  </div>
+                </motion.div>
+              )}
 
               {submitError && (
                 <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">

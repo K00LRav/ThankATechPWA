@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useGetTechnicianEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetTechnicianEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon, Download } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,36 @@ export function TechnicianDashboard() {
     } catch {
       toast.error("Something went wrong. Please try again.");
     }
+  }
+
+  function sanitizeCsvCell(value: string): string {
+    const sanitized = String(value).replace(/"/g, '""');
+    if (/^[=+\-@\t\r]/.test(sanitized)) {
+      return `"'${sanitized}"`;
+    }
+    return `"${sanitized}"`;
+  }
+
+  function handleDownloadCSV() {
+    if (!earnings?.entries?.length) return;
+    const header = ["Date", "Customer", "Job", "Gross Tip", "Net Payout"];
+    const rows = [...earnings.entries].reverse().map(entry => [
+      new Date(entry.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" }),
+      entry.customerName,
+      entry.jobTitle || `Job #${entry.id}`,
+      entry.tipAmount.toFixed(2),
+      (entry.tipAmount * 0.91).toFixed(2),
+    ]);
+    const csv = [header, ...rows]
+      .map(row => row.map(cell => sanitizeCsvCell(cell)).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `earnings-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleRedeem(rewardId: string) {
@@ -226,24 +256,37 @@ export function TechnicianDashboard() {
                 </p>
               </div>
             </div>
-            {stripeConnected && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 flex-shrink-0"
-                disabled={isDashboardLinkLoading}
-                onClick={() => {
-                  if (dashboardLink?.url) {
-                    window.open(dashboardLink.url, "_blank", "noopener,noreferrer");
-                  } else {
-                    refetchDashboardLink();
-                  }
-                }}
-              >
-                {isDashboardLinkLoading ? "Loading..." : dashboardLink ? "View Stripe Dashboard" : "Open Dashboard"}
-                <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {earnings && earnings.entries.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 flex-shrink-0"
+                  onClick={handleDownloadCSV}
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  Download CSV
+                </Button>
+              )}
+              {stripeConnected && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full border-secondary/40 text-secondary hover:bg-secondary/10 flex-shrink-0"
+                  disabled={isDashboardLinkLoading}
+                  onClick={() => {
+                    if (dashboardLink?.url) {
+                      window.open(dashboardLink.url, "_blank", "noopener,noreferrer");
+                    } else {
+                      refetchDashboardLink();
+                    }
+                  }}
+                >
+                  {isDashboardLinkLoading ? "Loading..." : dashboardLink ? "View Stripe Dashboard" : "Open Dashboard"}
+                  <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

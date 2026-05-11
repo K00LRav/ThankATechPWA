@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useListJobs, useListThankMessages, useGetPoints, useGetPointTransactions, useListRewards, useRedeemPoints, getListJobsQueryKey, getListThankMessagesQueryKey, getGetPointsQueryKey, getGetPointTransactionsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Gift, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Star, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { Heart, Gift, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Star, Sparkles, Tag, TrendingUp, Wrench, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -42,6 +42,68 @@ function JobStatusBadge({ status }: { status: string }) {
         </Badge>
       );
   }
+}
+
+type JobStatus = "pending" | "confirmed" | "completed" | "declined";
+
+const JOB_STEPS: { key: JobStatus | "thanked"; label: string; icon: React.ReactNode }[] = [
+  { key: "pending",   label: "Requested",  icon: <Clock className="w-3.5 h-3.5" /> },
+  { key: "confirmed", label: "Accepted",   icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  { key: "completed", label: "In Progress", icon: <Wrench className="w-3.5 h-3.5" /> },
+  { key: "thanked",   label: "Done",       icon: <ThumbsUp className="w-3.5 h-3.5" /> },
+];
+
+const STATUS_STEP_INDEX: Record<string, number> = {
+  pending:   0,
+  confirmed: 1,
+  completed: 3,
+  thanked:   3,
+};
+
+function JobProgressTimeline({ status }: { status: string }) {
+  const currentIndex = STATUS_STEP_INDEX[status] ?? 0;
+  return (
+    <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/20">
+      <div className="flex items-center gap-0">
+        {JOB_STEPS.map((step, i) => {
+          const isComplete = i < currentIndex;
+          const isCurrent = i === currentIndex;
+          const isLast = i === JOB_STEPS.length - 1;
+          return (
+            <div key={step.key} className="flex items-center flex-1 min-w-0">
+              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors ${
+                    isComplete
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : isCurrent
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-muted border-muted-foreground/20 text-muted-foreground/40"
+                  }`}
+                >
+                  {step.icon}
+                </div>
+                <span
+                  className={`text-[10px] font-medium whitespace-nowrap leading-tight text-center ${
+                    isComplete || isCurrent ? "text-foreground" : "text-muted-foreground/50"
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {!isLast && (
+                <div
+                  className={`h-0.5 flex-1 mx-1 mb-4 rounded-full transition-colors ${
+                    i < currentIndex ? "bg-primary" : "bg-muted-foreground/15"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
@@ -278,10 +340,19 @@ export function CustomerDashboard() {
                             </p>
                           )}
                           {job.status === "pending" && (
-                            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                            <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mt-1 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-3 py-2 border border-amber-200 dark:border-amber-800/40">
                               <Timer className="w-3.5 h-3.5 flex-shrink-0" />
-                              Waiting for the technician to accept your request.
+                              Waiting for the technician to accept — usually within a few hours.
                             </p>
+                          )}
+                          {job.status === "confirmed" && (
+                            <p className="text-sm text-blue-700 dark:text-blue-400 flex items-center gap-1.5 mt-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                              Your booking is confirmed. The technician is on their way.
+                            </p>
+                          )}
+                          {(job.status === "pending" || job.status === "confirmed" || job.status === "completed") && (
+                            <JobProgressTimeline status={job.status} />
                           )}
                           {hasRetryable && (
                             <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">

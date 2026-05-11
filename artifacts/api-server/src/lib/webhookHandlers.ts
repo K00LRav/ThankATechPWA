@@ -1,6 +1,6 @@
 import { getStripeSync } from './stripeClient';
 import { db } from '@workspace/db';
-import { thankMessagesTable } from '@workspace/db';
+import { thankMessagesTable, techniciansTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { logger } from './logger';
 import { applyPaymentSuccess } from './applyPaymentSuccess';
@@ -40,21 +40,75 @@ export class WebhookHandlers {
   }
 
   static async handleApplicationEvent(event: StripeEvent): Promise<void> {
-    const pi = event.data.object as {
-      id?: string;
-      metadata?: {
-        thankMessageId?: string;
-        technicianId?: string;
-        jobId?: string;
-        tipAmount?: string;
-      };
-    };
-
-    const rawThankMessageId = pi.metadata?.thankMessageId;
-    const thankMessageId = rawThankMessageId ? parseInt(rawThankMessageId, 10) : NaN;
-
     switch (event.type) {
+      case 'account.updated': {
+        const account = event.data.object as {
+          id?: string;
+          charges_enabled?: boolean;
+          payouts_enabled?: boolean;
+          details_submitted?: boolean;
+          disabled_reason?: string | null;
+        };
+
+        const stripeAccountId = account.id;
+        if (!stripeAccountId) {
+          logger.warn('account.updated: missing account id, skipping');
+          break;
+        }
+
+        // A Stripe account is considered fully active only when all three conditions hold.
+        // Any restriction (fraud review, document request, payout suspension) flips the flag to false,
+        // which causes /stripe/payment-intent to block new tips until the account is restored.
+        const isFullyActive =
+          account.details_submitted === true &&
+          account.charges_enabled === true &&
+          account.payouts_enabled === true;
+
+        const [tech] = await db
+          .select({ id: techniciansTable.id, stripeOnboardingComplete: techniciansTable.stripeOnboardingComplete })
+          .from(techniciansTable)
+          .where(eq(techniciansTable.stripeAccountId, stripeAccountId));
+
+        if (!tech) {
+          logger.warn({ stripeAccountId }, 'account.updated: no technician found for Stripe account, skipping');
+          break;
+        }
+
+        if (tech.stripeOnboardingComplete !== isFullyActive) {
+          await db
+            .update(techniciansTable)
+            .set({ stripeOnboardingComplete: isFullyActive })
+            .where(eq(techniciansTable.stripeAccountId, stripeAccountId));
+
+          logger.info(
+            { technicianId: tech.id, stripeAccountId, isFullyActive, disabledReason: account.disabled_reason ?? null },
+            isFullyActive
+              ? 'account.updated: Stripe account re-enabled — stripeOnboardingComplete set to true'
+              : 'account.updated: Stripe account disabled/restricted — stripeOnboardingComplete flipped to false',
+          );
+        } else {
+          logger.info(
+            { technicianId: tech.id, stripeAccountId, isFullyActive },
+            'account.updated: stripeOnboardingComplete unchanged, no DB update needed',
+          );
+        }
+        break;
+      }
+
       case 'payment_intent.succeeded': {
+        const pi = event.data.object as {
+          id?: string;
+          metadata?: {
+            thankMessageId?: string;
+            technicianId?: string;
+            jobId?: string;
+            tipAmount?: string;
+          };
+        };
+
+        const rawThankMessageId = pi.metadata?.thankMessageId;
+        const thankMessageId = rawThankMessageId ? parseInt(rawThankMessageId, 10) : NaN;
+
         if (!thankMessageId || isNaN(thankMessageId)) {
           logger.warn({ piId: pi.id }, 'payment_intent.succeeded: no thankMessageId in metadata, skipping');
           break;
@@ -65,6 +119,7 @@ export class WebhookHandlers {
         const rawJobId = pi.metadata?.jobId;
         const jobId = rawJobId ? parseInt(rawJobId, 10) : NaN;
         const tipAmount = parseFloat(pi.metadata?.tipAmount ?? '0');
+
         if (isNaN(technicianId) || isNaN(jobId)) {
           logger.warn({ piId: pi.id, thankMessageId }, 'payment_intent.succeeded: missing technicianId or jobId in metadata');
           break;
@@ -77,7 +132,7 @@ export class WebhookHandlers {
         // handle this atomically. Creating a separate Transfer would double-pay the technician.
         logger.info(
           { piId: pi.id, thankMessageId, technicianId, tipAmount, netToTech: Math.round(tipAmount * 0.91 * 100) / 100 },
-          'payment_intent.succeeded: Stripe destination charge — %.2f transferred to technician connected account (91% of tip)',
+          'payment_intent.succeeded: Stripe destination charge — funds transferred to technician connected account (91% of tip)',
         );
 
         await applyPaymentSuccess({
@@ -90,14 +145,24 @@ export class WebhookHandlers {
       }
 
       case 'payment_intent.payment_failed': {
+        const pi = event.data.object as {
+          id?: string;
+          metadata?: { thankMessageId?: string };
+        };
+
+        const rawThankMessageId = pi.metadata?.thankMessageId;
+        const thankMessageId = rawThankMessageId ? parseInt(rawThankMessageId, 10) : NaN;
+
         if (!thankMessageId || isNaN(thankMessageId)) {
           logger.warn({ piId: pi.id }, 'payment_intent.payment_failed: no thankMessageId in metadata, skipping');
           break;
         }
+
         await db
           .update(thankMessagesTable)
           .set({ paymentStatus: 'failed' })
           .where(eq(thankMessagesTable.id, thankMessageId));
+
         logger.info({ thankMessageId, piId: pi.id }, 'Thank message payment marked failed via webhook');
         break;
       }

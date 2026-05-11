@@ -17,6 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useListJobs,
+  useListThankMessages,
+  getListThankMessagesQueryKey,
   useGetMyProfile,
   useGetPoints,
   useGetPointTransactions,
@@ -67,14 +69,37 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function JobCard({ item, canThank, onCancel, cancelling }: { item: {
+function PaymentFailedBadge() {
+  const colors = useColors();
+  return (
+    <TouchableOpacity
+      onPress={() =>
+        Alert.alert(
+          "Payment Failed",
+          "The tip payment for this job didn't go through. Please retry the tip from the job details screen.",
+          [{ text: "OK" }]
+        )
+      }
+      style={[styles.paymentFailedBadge, { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "50" }]}
+      activeOpacity={0.7}
+      testID="payment-failed-badge"
+    >
+      <Ionicons name="alert-circle" size={13} color={colors.destructive} />
+      <Text style={[styles.paymentFailedText, { color: colors.destructive, fontFamily: "Inter_600SemiBold" }]}>
+        Payment failed
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function JobCard({ item, canThank, paymentFailed, onCancel, cancelling }: { item: {
   id: number;
   title: string;
   status: string;
   technicianName?: string;
   createdAt: string;
   completedAt?: string | null;
-}; canThank: boolean; onCancel?: (id: number) => void; cancelling?: boolean }) {
+}; canThank: boolean; paymentFailed?: boolean; onCancel?: (id: number) => void; cancelling?: boolean }) {
   const colors = useColors();
   const router = useRouter();
   const date = new Date(item.createdAt).toLocaleDateString("en-US", {
@@ -84,7 +109,13 @@ function JobCard({ item, canThank, onCancel, cancelling }: { item: {
 
   return (
     <TouchableOpacity
-      style={[styles.jobCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[
+        styles.jobCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: paymentFailed ? colors.destructive + "50" : colors.border,
+        },
+      ]}
       onPress={() => router.push({ pathname: "/job/[id]", params: { id: item.id } })}
       activeOpacity={0.75}
       testID={`job-card-${item.id}`}
@@ -101,6 +132,11 @@ function JobCard({ item, canThank, onCancel, cancelling }: { item: {
           {item.technicianName ?? "Technician"} · {date}
         </Text>
       </View>
+      {paymentFailed && (
+        <View onStartShouldSetResponder={() => true}>
+          <PaymentFailedBadge />
+        </View>
+      )}
       {canThank && (
         <View onStartShouldSetResponder={() => true}>
           <TouchableOpacity
@@ -376,11 +412,24 @@ export default function CustomerDashboard() {
   };
 
   const { data: jobs, isLoading, refetch } = useListJobs(jobsParams);
+  const { data: thankMessages, refetch: refetchThanks } = useListThankMessages(
+    { customerId: profile?.profileId },
+    {
+      query: {
+        enabled: !!profile?.profileId,
+        queryKey: getListThankMessagesQueryKey({ customerId: profile?.profileId }),
+      },
+    }
+  );
   const { data: points, refetch: refetchPoints } = useGetPoints(profile?.profileId ?? 0);
   const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(
     profile?.profileId ?? 0
   );
   const { mutate: cancelJob } = useUpdateJob();
+
+  const failedPaymentJobIds = new Set(
+    (thankMessages ?? []).filter(t => t.paymentStatus === "failed").map(t => t.jobId)
+  );
 
   const handleCancel = (jobId: number) => {
     Alert.alert(
@@ -414,7 +463,7 @@ export default function CustomerDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchTransactions(), refetchPoints()]);
+    await Promise.all([refetch(), refetchTransactions(), refetchPoints(), refetchThanks()]);
     setRefreshing(false);
   };
 
@@ -490,6 +539,7 @@ export default function CustomerDashboard() {
             <JobCard
               item={item}
               canThank={item.status === "completed"}
+              paymentFailed={failedPaymentJobIds.has(item.id)}
               onCancel={handleCancel}
               cancelling={cancellingJobId === item.id}
             />
@@ -588,6 +638,18 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12 },
   jobMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
   jobMetaText: { fontSize: 13 },
+  paymentFailedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  paymentFailedText: { fontSize: 12 },
   thankBtn: {
     flexDirection: "row",
     alignItems: "center",

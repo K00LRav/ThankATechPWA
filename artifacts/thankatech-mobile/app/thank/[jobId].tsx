@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { useGetJob, useCreateThankMessage, useGetMyProfile } from "@workspace/api-client-react";
+import { useGetJob, useCreateThankMessage, useGetMyProfile, ApiError } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
@@ -37,6 +37,8 @@ export default function ThankFlowScreen() {
   const [customTip, setCustomTip] = useState("");
   const [isCustomTip, setIsCustomTip] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [alreadyThanked, setAlreadyThanked] = useState(false);
+  const [jobNotComplete, setJobNotComplete] = useState(false);
   const celebrateAnim = useRef(new Animated.Value(0)).current;
 
   const { data: job, isLoading: jobLoading } = useGetJob(jobIdNum);
@@ -73,12 +75,21 @@ export default function ThankFlowScreen() {
         useNativeDriver: true,
         friction: 4,
       }).start();
-    } catch {
-      Alert.alert(
-        "Couldn't send thanks",
-        "Something went wrong. Please try again.",
-        [{ text: "OK" }]
-      );
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409) {
+        const data = err.data as { code?: string } | null;
+        if (data?.code === "THANK_ALREADY_EXISTS") {
+          setAlreadyThanked(true);
+        } else {
+          setJobNotComplete(true);
+        }
+      } else {
+        Alert.alert(
+          "Couldn't send thanks",
+          "Something went wrong. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -91,6 +102,50 @@ export default function ThankFlowScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  if (alreadyThanked) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingHorizontal: 32 }]}>
+        <View style={[styles.notReadyIcon, { backgroundColor: colors.primary + "20" }]}>
+          <Ionicons name="heart-circle-outline" size={44} color={colors.primary} />
+        </View>
+        <Text style={[styles.notReadyTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+          Already sent!
+        </Text>
+        <Text style={[styles.notReadyBody, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+          You've already sent a thank you for this job. Your message and any tip have been delivered to the technician.
+        </Text>
+        <TouchableOpacity
+          style={[styles.doneBtn, { backgroundColor: colors.primary, marginTop: 8, width: "80%" }]}
+          onPress={() => router.replace("/dashboard/customer")}
+        >
+          <Text style={[styles.doneBtnText, { fontFamily: "Inter_600SemiBold" }]}>Back to dashboard</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (jobNotComplete) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingHorizontal: 32 }]}>
+        <View style={[styles.notReadyIcon, { backgroundColor: colors.muted }]}>
+          <Ionicons name="time-outline" size={44} color={colors.mutedForeground} />
+        </View>
+        <Text style={[styles.notReadyTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+          Not ready yet
+        </Text>
+        <Text style={[styles.notReadyBody, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+          This job isn't completed yet and can't be thanked. Go back to your dashboard to check its status.
+        </Text>
+        <TouchableOpacity
+          style={[styles.doneBtn, { backgroundColor: colors.primary, marginTop: 8, width: "80%" }]}
+          onPress={() => router.replace("/dashboard/customer")}
+        >
+          <Text style={[styles.doneBtnText, { fontFamily: "Inter_600SemiBold" }]}>Back to dashboard</Text>
+        </TouchableOpacity>
       </View>
     );
   }

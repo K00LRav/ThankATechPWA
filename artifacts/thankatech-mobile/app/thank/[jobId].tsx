@@ -95,6 +95,34 @@ export default function ThankFlowScreen() {
     );
   }
 
+  if (job && job.status !== "completed") {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: topPadding }]}>
+        <TouchableOpacity
+          style={[styles.closeBtn, { backgroundColor: colors.card, borderColor: colors.border, position: "absolute", top: topPadding + 12, left: 20 }]}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.foreground} />
+        </TouchableOpacity>
+        <View style={[styles.notReadyIcon, { backgroundColor: colors.muted }]}>
+          <Ionicons name="time-outline" size={44} color={colors.mutedForeground} />
+        </View>
+        <Text style={[styles.notReadyTitle, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
+          Job not completed yet
+        </Text>
+        <Text style={[styles.notReadyBody, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+          You can send thanks once the technician has finished the job. Check back when the status shows "completed".
+        </Text>
+        <TouchableOpacity
+          style={[styles.doneBtn, { backgroundColor: colors.primary, marginTop: 8, width: "80%" }]}
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.doneBtnText, { fontFamily: "Inter_600SemiBold" }]}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (step === "celebrate") {
     const scale = celebrateAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
     const opacity = celebrateAnim;
@@ -467,4 +495,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   doneBtnText: { color: "#fff", fontSize: 17 },
+  notReadyIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  notReadyTitle: { fontSize: 26, letterSpacing: -0.5, textAlign: "center", marginBottom: 8 },
+  notReadyBody: { fontSize: 15, lineHeight: 22, textAlign: "center", paddingHorizontal: 8 },
 });

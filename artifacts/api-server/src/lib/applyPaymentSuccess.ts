@@ -160,9 +160,21 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
 
   // Credit technician earnings and award tip points
   if (tipAmount > 0) {
+    // Recompute totalEarned in a single UPDATE … SET col = (subquery) statement.
+    // Postgres evaluates the subquery and applies the write atomically, closing the
+    // SELECT-then-UPDATE race window that a two-step approach would leave open.
+    // The thank_messages row was already flipped to 'succeeded' above, so the SUM
+    // includes the current tip. Any prior drift is reconciled here automatically.
     await db
       .update(techniciansTable)
-      .set({ totalEarned: sql`${techniciansTable.totalEarned} + ${tipAmount.toString()}` })
+      .set({
+        totalEarned: sql<string>`(
+          SELECT COALESCE(SUM(${thankMessagesTable.tipAmount}), 0)
+          FROM ${thankMessagesTable}
+          WHERE ${thankMessagesTable.technicianId} = ${technicianId}
+            AND ${thankMessagesTable.paymentStatus} = 'succeeded'
+        )`,
+      })
       .where(eq(techniciansTable.id, technicianId));
 
     await awardPoints(technicianId, 50, 'tip_received', jobId, 'Received a tip');

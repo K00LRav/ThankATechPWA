@@ -11,6 +11,7 @@ import {
   Switch,
   Alert,
   Modal,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,6 +30,9 @@ import {
   useGetPointTransactions,
   useListRewards,
   useRedeemPoints,
+  useGetStripeEarnings,
+  useGetStripeConnectStatus,
+  useGetStripeConnectDashboardLink,
   getGetPointsQueryKey,
   getGetPointTransactionsQueryKey,
 } from "@workspace/api-client-react";
@@ -269,6 +273,11 @@ export default function TechnicianDashboard() {
   const { data: wall } = useGetTechnicianWallOfThanks(techId > 0 ? techId : 0);
   const { data: stats } = useGetTechnicianStats(techId > 0 ? techId : 0);
   const { data: transactions, isLoading: txLoading, refetch: refetchTransactions } = useGetPointTransactions(profile?.profileId ?? 0);
+  const { data: earnings, isLoading: earningsLoading, refetch: refetchEarnings } = useGetStripeEarnings();
+  const { data: stripeStatus } = useGetStripeConnectStatus();
+  const { data: dashboardLink, isLoading: dashboardLinkLoading } = useGetStripeConnectDashboardLink({
+    query: { enabled: stripeStatus?.onboardingComplete === true },
+  });
 
   const { mutateAsync: registerTokenAsync } = useRegisterPushToken();
   const { mutateAsync: unregisterTokenAsync } = useUnregisterPushToken();
@@ -348,9 +357,18 @@ export default function TechnicianDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchJobs(), refetchPoints(), refetchTransactions()]);
+    await Promise.all([refetchJobs(), refetchPoints(), refetchTransactions(), refetchEarnings()]);
     setRefreshing(false);
   };
+
+  const handleOpenStripeDashboard = useCallback(async () => {
+    if (!dashboardLink?.url) return;
+    try {
+      await Linking.openURL(dashboardLink.url);
+    } catch {
+      Alert.alert("Couldn't open", "Unable to open the Stripe dashboard. Please try again.");
+    }
+  }, [dashboardLink]);
 
   const topPadding = isWeb ? 67 : insets.top;
 
@@ -494,6 +512,101 @@ export default function TechnicianDashboard() {
           recentWall.map((item) => (
             <ThankPreviewCard key={item.id} item={item} />
           ))
+        )}
+
+        {/* Earnings */}
+        <View style={[styles.sectionHeader, { marginTop: 4 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+            Earnings
+          </Text>
+        </View>
+
+        {earningsLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+        ) : (
+          <>
+            {/* Earnings summary card */}
+            <View style={[styles.earningsSummaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.earningsSummaryRow}>
+                <View style={styles.earningsSummaryItem}>
+                  <Text style={[styles.earningsSummaryValue, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+                    ${(earnings?.totalEarned ?? 0).toFixed(2)}
+                  </Text>
+                  <Text style={[styles.earningsSummaryLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    Total Earned
+                  </Text>
+                </View>
+                <View style={[styles.earningsDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.earningsSummaryItem}>
+                  <Text style={[styles.earningsSummaryValue, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+                    {earnings?.tipCount ?? 0}
+                  </Text>
+                  <Text style={[styles.earningsSummaryLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    Tips Received
+                  </Text>
+                </View>
+              </View>
+
+              {dashboardLink?.url ? (
+                <TouchableOpacity
+                  style={[styles.stripeBtn, { backgroundColor: colors.secondary }]}
+                  onPress={handleOpenStripeDashboard}
+                  disabled={dashboardLinkLoading}
+                >
+                  <Ionicons name="card-outline" size={16} color="#fff" />
+                  <Text style={[styles.stripeBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+                    View Stripe Dashboard
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Payout history */}
+            {(earnings?.entries?.length ?? 0) === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="cash-outline" size={28} color={colors.mutedForeground} />
+                <Text style={[styles.emptyCardText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                  No tips received yet
+                </Text>
+              </View>
+            ) : (
+              [...(earnings?.entries ?? [])]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map((entry) => {
+                  const date = new Date(entry.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  return (
+                    <View
+                      key={entry.id}
+                      style={[styles.payoutCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    >
+                      <View style={[styles.payoutIconWrap, { backgroundColor: colors.secondary + "15" }]}>
+                        <Ionicons name="cash-outline" size={18} color={colors.secondary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.payoutCustomer, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
+                          {entry.customerName}
+                        </Text>
+                        {entry.jobTitle ? (
+                          <Text style={[styles.payoutJob, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                            {entry.jobTitle}
+                          </Text>
+                        ) : null}
+                        <Text style={[styles.payoutDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                          {date}
+                        </Text>
+                      </View>
+                      <Text style={[styles.payoutAmount, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>
+                        +${entry.tipAmount.toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })
+            )}
+          </>
         )}
 
         {/* Points History */}
@@ -738,6 +851,58 @@ const styles = StyleSheet.create({
   },
   prefLabel: { fontSize: 15, marginBottom: 2 },
   prefDesc: { fontSize: 13, lineHeight: 18 },
+  earningsSummaryCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+    gap: 14,
+  },
+  earningsSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  earningsSummaryItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  earningsDivider: {
+    width: 1,
+    height: 40,
+    marginHorizontal: 8,
+  },
+  earningsSummaryValue: { fontSize: 22 },
+  earningsSummaryLabel: { fontSize: 12 },
+  stripeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 10,
+  },
+  stripeBtnText: { color: "#fff", fontSize: 14 },
+  payoutCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  payoutIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payoutCustomer: { fontSize: 14, marginBottom: 1 },
+  payoutJob: { fontSize: 12, marginBottom: 1 },
+  payoutDate: { fontSize: 12 },
+  payoutAmount: { fontSize: 15 },
   modalContainer: { flex: 1 },
   modalHeader: {
     flexDirection: "row",

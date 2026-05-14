@@ -82,6 +82,7 @@ _Populate as needed._
 - Auth uses Replit OIDC — `REPL_ID` env var is used as the client_id (auto-set in Replit environment)
 - Do NOT use generated API client hooks for auth operations — use `useAuth()` from `@workspace/replit-auth-web`
 - Auth tables (`sessions`, `users`) are mandatory — do not drop them
+- Stripe webhook: `stripe-replit-sync` does NOT register `account.updated` in the enabled events list. `initStripe()` in `artifacts/api-server/src/index.ts` detects this at startup and automatically updates the Stripe webhook endpoint to add any missing required events. No manual Stripe dashboard config is needed.
 
 ## Pointers
 

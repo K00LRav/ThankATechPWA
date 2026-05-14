@@ -2,16 +2,27 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { techniciansTable, thankMessagesTable, jobsTable, profilesTable } from "@workspace/db";
 import { eq, ilike, or, sql, and } from "drizzle-orm";
+import { geocodeAddress, haversineDistanceMiles } from "../lib/geocoder";
 
 const router = Router();
 
 router.get("/technicians", async (req, res) => {
   try {
-    const { specialty, search } = req.query as { specialty?: string; search?: string };
-    let query = db.select().from(techniciansTable);
+    const { specialty, search, lat, lng } = req.query as {
+      specialty?: string;
+      search?: string;
+      lat?: string;
+      lng?: string;
+    };
+
+    const userLat = lat ? parseFloat(lat) : null;
+    const userLng = lng ? parseFloat(lng) : null;
+    const hasLocation = userLat !== null && userLng !== null && !isNaN(userLat) && !isNaN(userLng);
+
+    let rows: (typeof techniciansTable.$inferSelect)[];
 
     if (search) {
-      const results = await db
+      rows = await db
         .select()
         .from(techniciansTable)
         .where(
@@ -21,19 +32,26 @@ router.get("/technicians", async (req, res) => {
             ilike(techniciansTable.serviceArea, `%${search}%`)
           )
         );
-      return res.json(results.map(formatTechnician));
-    }
-
-    if (specialty) {
-      const results = await db
+    } else if (specialty) {
+      rows = await db
         .select()
         .from(techniciansTable)
         .where(ilike(techniciansTable.specialty, `%${specialty}%`));
-      return res.json(results.map(formatTechnician));
+    } else {
+      rows = await db.select().from(techniciansTable);
     }
 
-    const results = await query;
-    return res.json(results.map(formatTechnician));
+    let formatted = rows.map(t => formatTechnician(t, userLat, userLng));
+
+    if (hasLocation) {
+      formatted = formatted.sort((a, b) => {
+        const da = a.distanceMiles ?? Infinity;
+        const db2 = b.distanceMiles ?? Infinity;
+        return da - db2;
+      });
+    }
+
+    return res.json(formatted);
   } catch (err) {
     req.log.error({ err }, "Error listing technicians");
     return res.status(500).json({ error: "Internal server error" });
@@ -43,6 +61,7 @@ router.get("/technicians", async (req, res) => {
 router.post("/technicians", async (req, res) => {
   try {
     const body = req.body;
+    const coords = body.serviceArea ? await geocodeAddress(body.serviceArea) : null;
     const [technician] = await db.insert(techniciansTable).values({
       fullName: body.fullName,
       avatarUrl: body.avatarUrl ?? null,
@@ -52,8 +71,10 @@ router.post("/technicians", async (req, res) => {
       bio: body.bio ?? "",
       hourlyRate: body.hourlyRate?.toString() ?? null,
       certifications: body.certifications ?? [],
+      latitude: coords?.lat ?? null,
+      longitude: coords?.lng ?? null,
     }).returning();
-    return res.status(201).json(formatTechnician(technician));
+    return res.status(201).json(formatTechnician(technician, null, null));
   } catch (err) {
     req.log.error({ err }, "Error creating technician");
     return res.status(500).json({ error: "Internal server error" });
@@ -65,7 +86,7 @@ router.get("/technicians/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const [technician] = await db.select().from(techniciansTable).where(eq(techniciansTable.id, id));
     if (!technician) return res.status(404).json({ error: "Not found" });
-    return res.json(formatTechnician(technician));
+    return res.json(formatTechnician(technician, null, null));
   } catch (err) {
     req.log.error({ err }, "Error getting technician");
     return res.status(500).json({ error: "Internal server error" });
@@ -193,7 +214,16 @@ router.get("/technicians/:id/stats", async (req, res) => {
   }
 });
 
-function formatTechnician(t: typeof techniciansTable.$inferSelect) {
+function formatTechnician(
+  t: typeof techniciansTable.$inferSelect,
+  userLat: number | null,
+  userLng: number | null
+) {
+  const distanceMiles =
+    userLat !== null && userLng !== null && t.latitude !== null && t.longitude !== null
+      ? Math.round(haversineDistanceMiles(userLat, userLng, t.latitude, t.longitude) * 10) / 10
+      : null;
+
   return {
     id: t.id,
     fullName: t.fullName,
@@ -206,6 +236,7 @@ function formatTechnician(t: typeof techniciansTable.$inferSelect) {
     certifications: t.certifications,
     totalThanks: t.totalThanks,
     totalEarned: parseFloat(t.totalEarned ?? "0"),
+    distanceMiles,
     createdAt: t.createdAt?.toISOString(),
   };
 }

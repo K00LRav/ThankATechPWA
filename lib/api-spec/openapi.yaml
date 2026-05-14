@@ -53,6 +53,14 @@ paths:
           name: search
           schema:
             type: string
+        - in: query
+          name: lat
+          schema:
+            type: number
+        - in: query
+          name: lng
+          schema:
+            type: number
       responses:
         "200":
           description: List of technicians
@@ -895,6 +903,8 @@ components:
           type: integer
         totalEarned:
           type: number
+        distanceMiles:
+          type: ["number", "null"]
         createdAt:
           type: string
 

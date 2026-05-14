@@ -21,6 +21,8 @@ export const HealthCheckResponse = zod.object({
 export const ListTechniciansQueryParams = zod.object({
   specialty: zod.coerce.string().optional(),
   search: zod.coerce.string().optional(),
+  lat: zod.coerce.number().optional(),
+  lng: zod.coerce.number().optional(),
 });
 
 export const ListTechniciansResponseItem = zod.object({
@@ -35,6 +37,7 @@ export const ListTechniciansResponseItem = zod.object({
   certifications: zod.array(zod.string()).optional(),
   totalThanks: zod.number(),
   totalEarned: zod.number(),
+  distanceMiles: zod.number().nullish(),
   createdAt: zod.string().optional(),
 });
 export const ListTechniciansResponse = zod.array(ListTechniciansResponseItem);
@@ -72,6 +75,7 @@ export const GetTechnicianResponse = zod.object({
   certifications: zod.array(zod.string()).optional(),
   totalThanks: zod.number(),
   totalEarned: zod.number(),
+  distanceMiles: zod.number().nullish(),
   createdAt: zod.string().optional(),
 });
 

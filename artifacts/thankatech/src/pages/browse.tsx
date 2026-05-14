@@ -1,15 +1,47 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "wouter";
 import { useListTechnicians } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, MapPin, Heart, Wrench } from "lucide-react";
+import { Search, MapPin, Heart, Wrench, Navigation, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Browse() {
   const [search, setSearch] = useState("");
-  const { data: technicians, isLoading } = useListTechnicians({ search: search || undefined });
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const { data: technicians, isLoading } = useListTechnicians({
+    search: search || undefined,
+    lat: userLocation?.lat,
+    lng: userLocation?.lng,
+  });
+
+  const handleNearMe = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError("Your browser doesn't support location access.");
+      return;
+    }
+    setLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setLocationError("Couldn't get your location. Please allow location access and try again.");
+        setLocating(false);
+      }
+    );
+  }, []);
+
+  const handleClearLocation = useCallback(() => {
+    setUserLocation(null);
+    setLocationError(null);
+  }, []);
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/20 py-12 px-4">
@@ -19,16 +51,52 @@ export function Browse() {
           <p className="text-lg text-muted-foreground">Discover skilled professionals in your area who have been thanked by their community.</p>
         </div>
 
-        <div className="max-w-xl mx-auto flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input 
-              placeholder="Search by name or specialty..." 
-              className="pl-10 h-12 text-base rounded-full"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <div className="max-w-xl mx-auto space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+              <Input
+                placeholder="Search by name or specialty..."
+                className="pl-10 h-12 text-base rounded-full"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            {userLocation ? (
+              <Button
+                variant="outline"
+                className="h-12 rounded-full px-4 gap-2 border-primary text-primary hover:bg-primary/5"
+                onClick={handleClearLocation}
+              >
+                <Navigation size={16} className="fill-primary" />
+                Near me
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="h-12 rounded-full px-4 gap-2"
+                onClick={handleNearMe}
+                disabled={locating}
+              >
+                {locating ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Navigation size={16} />
+                )}
+                {locating ? "Locating…" : "Near me"}
+              </Button>
+            )}
           </div>
+
+          {locationError && (
+            <p className="text-sm text-destructive text-center">{locationError}</p>
+          )}
+
+          {userLocation && (
+            <p className="text-sm text-center text-muted-foreground">
+              Showing technicians sorted by distance from your location
+            </p>
+          )}
         </div>
 
         {isLoading ? (
@@ -56,11 +124,16 @@ export function Browse() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2 text-sm text-muted-foreground pt-4 border-t">
                       <p className="flex items-center gap-2">
                         <MapPin size={16} />
-                        {tech.serviceArea}
+                        <span>{tech.serviceArea}</span>
+                        {tech.distanceMiles !== null && tech.distanceMiles !== undefined && (
+                          <span className="ml-auto font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full text-xs">
+                            {tech.distanceMiles} mi
+                          </span>
+                        )}
                       </p>
                       <p className="flex items-center gap-2">
                         <Heart size={16} className="text-primary" />
@@ -76,7 +149,7 @@ export function Browse() {
                 </CardContent>
               </Card>
             ))}
-            
+
             {technicians?.length === 0 && (
               <div className="col-span-full text-center py-12 text-muted-foreground">
                 <p className="text-lg">No technicians found matching your search.</p>

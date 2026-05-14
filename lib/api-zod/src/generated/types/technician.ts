@@ -20,5 +20,7 @@ export interface Technician {
   certifications?: string[];
   totalThanks: number;
   totalEarned: number;
+  /** @nullable */
+  distanceMiles?: number | null;
   createdAt?: string;
 }

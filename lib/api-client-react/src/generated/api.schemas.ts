@@ -23,6 +23,8 @@ export interface Technician {
   certifications?: string[];
   totalThanks: number;
   totalEarned: number;
+  /** @nullable */
+  distanceMiles?: number | null;
   createdAt?: string;
 }
 
@@ -316,6 +318,8 @@ export type AuthorizationSessionHeaderParameter = string;
 export type ListTechniciansParams = {
   specialty?: string;
   search?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type ListJobsParams = {

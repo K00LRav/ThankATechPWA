@@ -46,3 +46,14 @@ externalPort = 3003
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+BREVO_SMTP_LOGIN = "982ce2001@smtp-brevo.com"
+BREVO_SMTP_SERVER = "smtp-relay.brevo.com"
+BREVO_SMTP_PORT = "587"
+ADMIN_EMAIL = "admin@thankatech.com"
+EMAIL_FROM = "noreply@thankatech.com"
+EMAIL_FROM_NAME = "ThankATech"
+EMAIL_SERVICE = "brevo"

@@ -178,16 +178,38 @@ router.patch("/jobs/:id", async (req, res) => {
 
   try {
     const id = parseInt(req.params.id);
-    const { technicianId } = await getUserIdentity(req.user.id);
+    const { profileId, technicianId, userType } = await getUserIdentity(req.user.id);
 
     const [existing] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Not found" });
 
+    const body = req.body;
+
+    // Customer path: only allow cancelling their own pending jobs
+    if (userType === "customer") {
+      if (existing.customerId !== profileId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (body.status !== "cancelled") {
+        return res.status(403).json({ error: "Customers may only cancel jobs" });
+      }
+      if (existing.status !== "pending") {
+        return res.status(409).json({
+          error: "This job cannot be cancelled because it is already in progress or completed.",
+        });
+      }
+      const [job] = await db
+        .update(jobsTable)
+        .set({ status: "cancelled" })
+        .where(eq(jobsTable.id, id))
+        .returning();
+      return res.json(formatJob(job));
+    }
+
+    // Technician path
     if (existing.technicianId !== technicianId) {
       return res.status(403).json({ error: "Forbidden" });
     }
-
-    const body = req.body;
 
     if (body.status !== undefined) {
       const validTransitions: Record<string, string[]> = {

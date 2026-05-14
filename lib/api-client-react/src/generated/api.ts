@@ -952,7 +952,7 @@ export const updateJob = async (
 };
 
 export const getUpdateJobMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorEnvelope>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -993,13 +993,13 @@ export type UpdateJobMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateJob>>
 >;
 export type UpdateJobMutationBody = BodyType<JobUpdate>;
-export type UpdateJobMutationError = ErrorType<unknown>;
+export type UpdateJobMutationError = ErrorType<ErrorEnvelope>;
 
 /**
  * @summary Update job status
  */
 export const useUpdateJob = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorEnvelope>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

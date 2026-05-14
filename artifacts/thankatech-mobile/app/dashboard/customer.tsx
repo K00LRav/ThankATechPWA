@@ -24,6 +24,7 @@ import {
   useGetMyProfile,
   useUpdateJob,
   useRegisterPushToken,
+  type UpdateJobMutationError,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
@@ -306,9 +307,10 @@ export default function CustomerDashboard() {
                   setCancelledToastKey(k => k + 1);
                   refetch();
                 },
-                onError: () => {
+                onError: (err: UpdateJobMutationError) => {
                   setCancellingJobId(null);
-                  Alert.alert("Error", "Could not cancel the job. Please try again.");
+                  const message = err.data?.error ?? "Could not cancel the job. Please try again.";
+                  Alert.alert("Cannot Cancel", message);
                 },
               }
             );

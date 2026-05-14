@@ -11,3 +11,9 @@ id = "Ctx5pend0okNQLd8PzS-p"
 uri = "file://artifacts/thankatech/public/twitter-banner.svg"
 type = "image"
 title = "ThankATech Twitter Banner (1500×500)"
+
+[[outputs]]
+id = "c2n_3Cwnl5LBTf9xIfM9H"
+uri = "file://artifacts/thankatech/public/profile-picture.svg"
+type = "image"
+title = "ThankATech Profile Picture (400×400)"

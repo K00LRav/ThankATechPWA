@@ -1,0 +1,8 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#FF6B35"/>
+
+  <!-- Heart icon centred -->
+  <path d="M200 290 C200 290 90 228 90 152 C90 112 122 84 158 84 C178 84 196 94 200 100 C204 94 222 84 242 84 C278 84 310 112 310 152 C310 228 200 290 200 290 Z"
+        fill="white"/>
+</svg>

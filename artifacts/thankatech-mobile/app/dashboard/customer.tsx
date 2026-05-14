@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Platform,
   Alert,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -64,6 +65,37 @@ async function requestAndGetPushToken(): Promise<string | null> {
 }
 
 const STATUS_FILTERS = ["all", "pending", "in_progress", "completed"];
+
+function CancelledToast({ onHide, colors }: { onHide: () => void; colors: ReturnType<typeof useColors> }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(2200),
+      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => onHide());
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.toast,
+        {
+          opacity,
+          backgroundColor: colors.secondary,
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+      <Ionicons name="checkmark-circle" size={18} color="#fff" />
+      <Text style={[styles.toastText, { fontFamily: "Inter_600SemiBold" }]}>Job cancelled</Text>
+      <TouchableOpacity onPress={onHide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="close" size={16} color="#fff" />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   const colors = useColors();
@@ -206,6 +238,7 @@ export default function CustomerDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
+  const [cancelledToastKey, setCancelledToastKey] = useState(0);
 
   const { data: profileData } = useGetMyProfile();
   const profile = profileData?.profile;
@@ -270,6 +303,7 @@ export default function CustomerDashboard() {
               {
                 onSuccess: () => {
                   setCancellingJobId(null);
+                  setCancelledToastKey(k => k + 1);
                   refetch();
                 },
                 onError: () => {
@@ -294,6 +328,13 @@ export default function CustomerDashboard() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {cancelledToastKey > 0 && (
+        <CancelledToast
+          key={cancelledToastKey}
+          onHide={() => setCancelledToastKey(0)}
+          colors={colors}
+        />
+      )}
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <TouchableOpacity
@@ -471,4 +512,22 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 14 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+  toast: {
+    position: "absolute",
+    bottom: 40,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 28,
+    zIndex: 999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastText: { color: "#fff", fontSize: 14 },
 });

@@ -1,9 +1,67 @@
 import { getStripeSync } from './stripeClient';
 import { db } from '@workspace/db';
-import { thankMessagesTable, techniciansTable } from '@workspace/db';
-import { eq } from 'drizzle-orm';
+import { thankMessagesTable, techniciansTable, pushTokensTable } from '@workspace/db';
+import { eq, and, sql } from 'drizzle-orm';
 import { logger } from './logger';
 import { applyPaymentSuccess } from './applyPaymentSuccess';
+
+async function notifyCustomerPaymentFailed(
+  thankMessageId: number,
+  customerId: number,
+  tipAmount: number,
+  technicianName: string,
+): Promise<void> {
+  const tokens = await db
+    .select({ token: pushTokensTable.token })
+    .from(pushTokensTable)
+    .where(eq(pushTokensTable.profileId, customerId));
+
+  if (tokens.length === 0) return;
+
+  const formattedAmount = tipAmount.toFixed(2).replace(/\.00$/, '');
+  const body = `Your $${formattedAmount} tip to ${technicianName} didn't go through — tap to retry.`;
+
+  const messages = tokens.map(({ token }) => ({
+    to: token,
+    sound: 'default' as const,
+    title: 'Tip payment failed',
+    body,
+    data: { thankMessageId },
+  }));
+
+  const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(messages),
+  });
+
+  if (pushRes.ok) {
+    const json = (await pushRes.json()) as {
+      data?: Array<{ status: string; details?: { error?: string } }>;
+    };
+    const staleTokens: string[] = [];
+    (json.data ?? []).forEach((ticket, i) => {
+      if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+        const staleToken = tokens[i]?.token;
+        if (staleToken) staleTokens.push(staleToken);
+      }
+    });
+    if (staleTokens.length > 0) {
+      await db
+        .delete(pushTokensTable)
+        .where(
+          and(
+            eq(pushTokensTable.profileId, customerId),
+            sql`${pushTokensTable.token} = ANY(${staleTokens})`,
+          ),
+        );
+    }
+  }
+}
 
 interface StripeEvent {
   type: string;
@@ -158,12 +216,37 @@ export class WebhookHandlers {
           break;
         }
 
-        await db
+        // Idempotency guard: only update (and notify) when status is not already 'failed'.
+        // Webhook retries would otherwise re-send the push notification on every delivery.
+        const updated = await db
           .update(thankMessagesTable)
           .set({ paymentStatus: 'failed' })
-          .where(eq(thankMessagesTable.id, thankMessageId));
+          .where(
+            and(
+              eq(thankMessagesTable.id, thankMessageId),
+              sql`${thankMessagesTable.paymentStatus} != 'failed'`,
+            ),
+          )
+          .returning({
+            customerId: thankMessagesTable.customerId,
+            tipAmount: thankMessagesTable.tipAmount,
+            technicianName: thankMessagesTable.technicianName,
+          });
+
+        if (updated.length === 0) {
+          logger.info({ thankMessageId, piId: pi.id }, 'payment_intent.payment_failed: already processed, skipping notification');
+          break;
+        }
 
         logger.info({ thankMessageId, piId: pi.id }, 'Thank message payment marked failed via webhook');
+
+        const { customerId, tipAmount, technicianName } = updated[0];
+        notifyCustomerPaymentFailed(
+          thankMessageId,
+          customerId,
+          parseFloat(tipAmount ?? '0'),
+          technicianName || 'the technician',
+        ).catch((err) => logger.warn({ err, thankMessageId }, 'Failed to send payment failed push notification'));
         break;
       }
 

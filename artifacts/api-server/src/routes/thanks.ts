@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable, pushTokensTable } from "@workspace/db";
+import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable, pushTokensTable, usersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
+import { sendEmail, emailThankReceived } from "../lib/mailer";
 
 const router = Router();
 
@@ -11,6 +12,13 @@ async function getProfileId(userId: string): Promise<number | null> {
     .from(profilesTable)
     .where(eq(profilesTable.userId, userId));
   return profile?.id ?? null;
+}
+
+async function getTechnicianEmail(technicianId: number): Promise<string | null> {
+  const [tech] = await db.select({ userId: techniciansTable.userId }).from(techniciansTable).where(eq(techniciansTable.id, technicianId));
+  if (!tech?.userId) return null;
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, tech.userId));
+  return user?.email ?? null;
 }
 
 router.get("/thanks", async (req, res) => {
@@ -144,6 +152,19 @@ router.post("/thanks", async (req, res) => {
     // Fire push notification to the technician asynchronously — don't let failures block the response.
     sendThankNotification(authorizedTechnicianId, customerDisplayName, body.message, body.tipAmount ?? 0)
       .catch((err) => req.log.warn({ err }, "Failed to send push notification"));
+
+    // Send thank-you received email to the technician (fire-and-forget)
+    getTechnicianEmail(authorizedTechnicianId).then(email => {
+      if (!email) return;
+      const tpl = emailThankReceived({
+        technicianName: body.technicianName ?? "there",
+        customerName: customerDisplayName,
+        message: body.message,
+        tipAmount: body.tipAmount ?? 0,
+        jobTitle: `Job #${job.id}`,
+      });
+      sendEmail(email, tpl.subject, tpl.html).catch(() => {});
+    }).catch(() => {});
 
     return res.status(201).json(formatThank(thankMessage));
   } catch (err) {

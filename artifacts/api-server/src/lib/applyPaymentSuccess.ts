@@ -17,9 +17,21 @@ import {
   pointTransactionsTable,
   profilesTable,
   pushTokensTable,
+  usersTable,
 } from '@workspace/db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { logger } from './logger';
+import { sendEmail, emailTipConfirmed } from './mailer';
+
+async function getTechnicianEmail(technicianId: number): Promise<{ email: string | null; name: string }> {
+  const [tech] = await db
+    .select({ userId: techniciansTable.userId, fullName: techniciansTable.fullName })
+    .from(techniciansTable)
+    .where(eq(techniciansTable.id, technicianId));
+  if (!tech?.userId) return { email: null, name: '' };
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, tech.userId));
+  return { email: user?.email ?? null, name: tech.fullName ?? '' };
+}
 
 async function awardPoints(
   userId: number,
@@ -182,6 +194,18 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
     // Fire push notification to the technician asynchronously — don't block the main flow.
     sendTipPaymentNotification(technicianId, customerName, tipAmount)
       .catch((err) => logger.warn({ err, technicianId }, 'Failed to send tip payment push notification'));
+
+    // Send tip confirmed email to the technician (fire-and-forget)
+    getTechnicianEmail(technicianId).then(({ email, name }) => {
+      if (!email) return;
+      const tpl = emailTipConfirmed({
+        technicianName: name,
+        customerName,
+        tipAmount,
+        netAmount: tipAmount * 0.91,
+      });
+      sendEmail(email, tpl.subject, tpl.html).catch(() => {});
+    }).catch(() => {});
   }
 
   // Mark job as thanked (with payment) and set completion timestamp

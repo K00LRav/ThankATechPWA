@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { jobsTable, profilesTable, techniciansTable, pushTokensTable } from "@workspace/db";
+import { jobsTable, profilesTable, techniciansTable, pushTokensTable, usersTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
+import { sendEmail, emailJobBooked, emailJobAccepted, emailJobDeclined, emailJobComplete } from "../lib/mailer";
 
 const router = Router();
 
@@ -9,6 +10,23 @@ interface UserIdentity {
   profileId: number | null;
   technicianId: number | null;
   userType: string | null;
+}
+
+async function getEmailForUserId(userId: string): Promise<string | null> {
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId));
+  return user?.email ?? null;
+}
+
+async function getEmailForProfileId(profileId: number): Promise<string | null> {
+  const [profile] = await db.select({ userId: profilesTable.userId }).from(profilesTable).where(eq(profilesTable.id, profileId));
+  if (!profile?.userId) return null;
+  return getEmailForUserId(profile.userId);
+}
+
+async function getEmailForTechnicianId(technicianId: number): Promise<string | null> {
+  const [tech] = await db.select({ userId: techniciansTable.userId }).from(techniciansTable).where(eq(techniciansTable.id, technicianId));
+  if (!tech?.userId) return null;
+  return getEmailForUserId(tech.userId);
 }
 
 async function getUserIdentity(userId: string): Promise<UserIdentity> {
@@ -105,6 +123,22 @@ router.post("/jobs", async (req, res) => {
       scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
       status: "pending",
     }).returning();
+
+    // Send booking confirmation email to customer (fire-and-forget)
+    getEmailForUserId(req.user.id).then(email => {
+      if (email) {
+        const tpl = emailJobBooked({
+          customerName: profile?.fullName ?? "there",
+          jobTitle: job.title,
+          technicianName: job.technicianName,
+          description: job.description,
+          address: job.address,
+          scheduledDate: job.scheduledDate?.toISOString() ?? null,
+        });
+        sendEmail(email, tpl.subject, tpl.html).catch(() => {});
+      }
+    }).catch(() => {});
+
     return res.status(201).json(formatJob(job));
   } catch (err) {
     req.log.error({ err }, "Error creating job");
@@ -181,20 +215,34 @@ router.patch("/jobs/:id", async (req, res) => {
       .where(eq(jobsTable.id, id))
       .returning();
 
-    // Fire push notification to the customer only on the pending → confirmed/declined transition.
     const newStatus = updates.status;
-    if (
-      existing.status === "pending" &&
-      (newStatus === "confirmed" || newStatus === "declined")
-    ) {
-      sendJobStatusNotification(
-        job.customerId,
-        job.title,
-        job.technicianName,
-        newStatus,
-      ).catch((err) =>
-        req.log.warn({ err, jobId: job.id }, "Failed to send job status push notification"),
-      );
+
+    // Push notification + email on pending → confirmed/declined
+    if (existing.status === "pending" && (newStatus === "confirmed" || newStatus === "declined")) {
+      sendJobStatusNotification(job.customerId, job.title, job.technicianName, newStatus)
+        .catch((err) => req.log.warn({ err, jobId: job.id }, "Failed to send job status push notification"));
+
+      getEmailForProfileId(job.customerId).then(email => {
+        if (!email) return;
+        const tpl = newStatus === "confirmed"
+          ? emailJobAccepted({ customerName: job.customerName, jobTitle: job.title, technicianName: job.technicianName, scheduledDate: job.scheduledDate?.toISOString() ?? null })
+          : emailJobDeclined({ customerName: job.customerName, jobTitle: job.title, technicianName: job.technicianName });
+        sendEmail(email, tpl.subject, tpl.html).catch(() => {});
+      }).catch(() => {});
+    }
+
+    // Email customer when job is marked complete — prompt them to say thanks
+    if (existing.status === "confirmed" && newStatus === "completed") {
+      getEmailForProfileId(job.customerId).then(email => {
+        if (!email) return;
+        const tpl = emailJobComplete({
+          customerName: job.customerName,
+          jobTitle: job.title,
+          technicianName: job.technicianName,
+          technicianId: job.technicianId,
+        });
+        sendEmail(email, tpl.subject, tpl.html).catch(() => {});
+      }).catch(() => {});
     }
 
     return res.json(formatJob(job));

@@ -124,7 +124,7 @@ export function TechnicianDashboard() {
 
   function handleDownloadCSV() {
     if (!earnings?.entries?.length) return;
-    const header = ["Date", "Customer", "Job", "Gross Tip", "Net Payout"];
+    const header = ["Date", "Client", "Job", "Gross Tip", "Net Payout"];
     const rows = [...earnings.entries].reverse().map(entry => [
       new Date(entry.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" }),
       entry.customerName,
@@ -391,7 +391,7 @@ export function TechnicianDashboard() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground text-xs uppercase tracking-wide">
                     <th className="pb-2 font-medium pr-4">Job</th>
-                    <th className="pb-2 font-medium pr-4">Customer</th>
+                    <th className="pb-2 font-medium pr-4">Client</th>
                     <th className="pb-2 font-medium pr-4">Payment Date</th>
                     <th className="pb-2 font-medium pr-4 text-right">Tip</th>
                     <th className="pb-2 font-medium text-right">Status</th>
@@ -619,7 +619,7 @@ export function TechnicianDashboard() {
                           <p className="text-muted-foreground mb-4">{job.description}</p>
                         )}
                         <div className="flex justify-between items-center text-sm">
-                          <span className="font-medium text-foreground">Customer: {job.customerName}</span>
+                          <span className="font-medium text-foreground">Client: {job.customerName}</span>
                           <Button
                             size="sm"
                             variant="outline"

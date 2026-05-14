@@ -36,7 +36,7 @@ function DevLoginButtons() {
           className="h-10 text-xs rounded-full border-primary/40 text-primary hover:bg-primary/5"
         >
           <Eye className="w-3 h-3 mr-1.5" />
-          Preview as Customer
+          Preview as Client
         </Button>
         <Button
           variant="outline"
@@ -54,10 +54,16 @@ function DevLoginButtons() {
 export function Login() {
   const { isAuthenticated, isLoading, login } = useAuth();
   const [, setLocation] = useLocation();
+  const [selectedRole, setSelectedRole] = useState<UserType>("customer");
 
   if (!isLoading && isAuthenticated) {
     setLocation("/");
     return null;
+  }
+
+  function handleSignIn() {
+    localStorage.setItem("onboard_role", selectedRole);
+    login();
   }
 
   return (
@@ -74,7 +80,7 @@ export function Login() {
           </div>
           <h1 className="text-3xl font-serif font-bold">Welcome to ThankATech</h1>
           <p className="text-muted-foreground text-sm">
-            Sign in to start spreading gratitude to the technicians who keep your world running.
+            Join as a client or a technician — choose your role to get started.
           </p>
         </motion.div>
 
@@ -85,31 +91,58 @@ export function Login() {
         >
           <Card className="border-border/60 shadow-sm">
             <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted/40 border border-border/40">
-                  <User className="w-6 h-6 text-primary" />
-                  <span className="text-sm font-medium">Customer</span>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">Book services & say thank you</span>
-                </div>
-                <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted/40 border border-border/40">
-                  <Wrench className="w-6 h-6 text-secondary" />
-                  <span className="text-sm font-medium">Technician</span>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">Provide services & earn tips</span>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground text-center">I am a...</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole("customer")}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      selectedRole === "customer"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <User className={`w-6 h-6 ${selectedRole === "customer" ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className={`text-sm font-medium ${selectedRole === "customer" ? "text-primary" : "text-foreground"}`}>
+                      Client
+                    </span>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">
+                      Book services & say thank you
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole("technician")}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      selectedRole === "technician"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <Wrench className={`w-6 h-6 ${selectedRole === "technician" ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className={`text-sm font-medium ${selectedRole === "technician" ? "text-primary" : "text-foreground"}`}>
+                      Technician
+                    </span>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">
+                      Provide services & earn tips
+                    </span>
+                  </button>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <Button
-                  onClick={login}
+                  onClick={handleSignIn}
                   disabled={isLoading}
                   className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-sm font-medium"
                 >
                   <LogIn className="w-4 h-4 mr-2" />
-                  {isLoading ? "Loading..." : "Sign In to Continue"}
+                  {isLoading ? "Loading..." : `Sign In as ${selectedRole === "customer" ? "Client" : "Technician"}`}
                   {!isLoading && <ArrowRight className="w-4 h-4 ml-2" />}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  New users will be asked to choose their role after signing in.
+                  New users will confirm their role after signing in.
                 </p>
               </div>
 
@@ -132,7 +165,8 @@ export function Login() {
 }
 
 export function Onboard() {
-  const [userType, setUserType] = useState<UserType>("customer");
+  const savedRole = (localStorage.getItem("onboard_role") as UserType | null) ?? "customer";
+  const [userType, setUserType] = useState<UserType>(savedRole);
   const [fullName, setFullName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [serviceArea, setServiceArea] = useState("");
@@ -150,6 +184,7 @@ export function Onboard() {
         body: JSON.stringify({ userType, fullName, specialty, serviceArea }),
       });
       if (res.ok) {
+        localStorage.removeItem("onboard_role");
         const data = await res.json();
         if (data.userType === "technician") {
           setLocation("/technician/dashboard");
@@ -193,7 +228,7 @@ export function Onboard() {
                   <button
                     type="button"
                     onClick={() => setUserType("customer")}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                       userType === "customer"
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/40"
@@ -201,7 +236,7 @@ export function Onboard() {
                   >
                     <User className={`w-6 h-6 ${userType === "customer" ? "text-primary" : "text-muted-foreground"}`} />
                     <span className={`text-sm font-medium ${userType === "customer" ? "text-primary" : "text-foreground"}`}>
-                      Customer
+                      Client
                     </span>
                     <span className="text-xs text-muted-foreground text-center leading-tight">
                       I need services done
@@ -210,7 +245,7 @@ export function Onboard() {
                   <button
                     type="button"
                     onClick={() => setUserType("technician")}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                       userType === "technician"
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/40"

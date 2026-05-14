@@ -1,11 +1,24 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { useListJobs, useListThankMessages, getListJobsQueryKey, getListThankMessagesQueryKey } from "@workspace/api-client-react";
+import { useListJobs, useListThankMessages, useUpdateJob, getListJobsQueryKey, getListThankMessagesQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Wrench, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function JobStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -30,6 +43,13 @@ function JobStatusBadge({ status }: { status: string }) {
           Declined
         </Badge>
       );
+    case "cancelled":
+      return (
+        <Badge variant="secondary" className="flex items-center gap-1 opacity-70">
+          <XCircle className="w-3 h-3" />
+          Cancelled
+        </Badge>
+      );
     case "pending":
     default:
       return (
@@ -41,7 +61,7 @@ function JobStatusBadge({ status }: { status: string }) {
   }
 }
 
-type JobStatus = "pending" | "confirmed" | "completed" | "declined";
+type JobStatus = "pending" | "confirmed" | "completed" | "declined" | "cancelled";
 
 const JOB_STEPS: { key: JobStatus | "thanked"; label: string; icon: React.ReactNode }[] = [
   { key: "pending",   label: "Requested",  icon: <Clock className="w-3.5 h-3.5" /> },
@@ -107,6 +127,12 @@ export function CustomerDashboard() {
   const { data: profileEnvelope } = useMyProfile();
   const profile = profileEnvelope?.profile;
   const profileId = profile?.profileId;
+  const queryClient = useQueryClient();
+
+  const [cancelConfirmJobId, setCancelConfirmJobId] = useState<number | null>(null);
+  const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
+
+  const updateJobMutation = useUpdateJob();
 
   const { data: jobs, isLoading: isJobsLoading } = useListJobs(
     {},
@@ -127,6 +153,20 @@ export function CustomerDashboard() {
   const thankedByJobId = new Map(
     (thankMessages ?? []).map(t => [t.jobId, { thankMessageId: t.id, technicianId: t.technicianId }])
   );
+
+  async function handleCancelJob(jobId: number) {
+    setCancellingJobId(jobId);
+    try {
+      await updateJobMutation.mutateAsync({ id: jobId, data: { status: "cancelled" } });
+      await queryClient.invalidateQueries({ queryKey: getListJobsQueryKey({}) });
+      toast.success("Job cancelled successfully.");
+    } catch {
+      toast.error("Could not cancel the job. Please try again.");
+    } finally {
+      setCancellingJobId(null);
+      setCancelConfirmJobId(null);
+    }
+  }
 
   if (!profileId) {
     return (
@@ -152,7 +192,7 @@ export function CustomerDashboard() {
         </div>
 
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-foreground border-b pb-2">Recent Jobs</h2>
+          <h2 className="text xl font-bold text-foreground border-b pb-2">Recent Jobs</h2>
 
           {isJobsLoading ? (
             <div className="space-y-4">
@@ -200,6 +240,12 @@ export function CustomerDashboard() {
                             <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                               <XCircle className="w-3.5 h-3.5 flex-shrink-0 text-destructive" />
                               The technician has declined this request. You can book another technician.
+                            </p>
+                          )}
+                          {job.status === "cancelled" && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                              You cancelled this job request.
                             </p>
                           )}
                           {job.status === "pending" && (
@@ -253,9 +299,25 @@ export function CustomerDashboard() {
                                 Find Another Tech
                               </Link>
                             </Button>
+                          ) : job.status === 'cancelled' ? (
+                            <Button disabled variant="outline" className="w-full md:w-auto rounded-full opacity-60">
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Cancelled
+                            </Button>
+                          ) : job.status === 'pending' ? (
+                            <Button
+                              variant="outline"
+                              className="w-full md:w-auto rounded-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
+                              size="lg"
+                              disabled={cancellingJobId === job.id}
+                              onClick={() => setCancelConfirmJobId(job.id)}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              {cancellingJobId === job.id ? "Cancelling..." : "Cancel Job"}
+                            </Button>
                           ) : (
                             <Button disabled variant="outline" className="w-full md:w-auto rounded-full">
-                              {job.status === 'confirmed' ? 'In progress' : 'Awaiting confirmation'}
+                              In progress
                             </Button>
                           )}
                         </div>
@@ -277,6 +339,26 @@ export function CustomerDashboard() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={cancelConfirmJobId !== null} onOpenChange={(open) => { if (!open) setCancelConfirmJobId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel your pending job request. The technician will be notified. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Job</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => { if (cancelConfirmJobId !== null) handleCancelJob(cancelConfirmJobId); }}
+            >
+              Cancel Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

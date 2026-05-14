@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { profilesTable, techniciansTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sendEmail, emailWelcome } from "../lib/mailer";
+import { geocodeAddress } from "../lib/geocoder";
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.post("/profile/me", async (req: Request, res: Response) => {
   }
 
   const userId = req.user.id;
-  const { userType, fullName, specialty, serviceArea, bio } = req.body;
+  const { userType, fullName, specialty, serviceArea, bio, avatarUrl } = req.body;
 
   if (!userType || !fullName) {
     res.status(400).json({ error: "userType and fullName are required" });
@@ -94,16 +95,21 @@ router.post("/profile/me", async (req: Request, res: Response) => {
       if (existingTech) {
         technicianId = existingTech.id;
       } else {
+        const resolvedServiceArea = serviceArea || "Local Area";
+        const coords = await geocodeAddress(resolvedServiceArea).catch(() => null);
         const [newTech] = await db
           .insert(techniciansTable)
           .values({
             userId,
             fullName,
             specialty: specialty || "General",
-            serviceArea: serviceArea || "Local Area",
+            serviceArea: resolvedServiceArea,
             bio: bio || "",
             specialties: specialty ? [specialty] : [],
             certifications: [],
+            avatarUrl: avatarUrl || null,
+            latitude: coords?.lat ?? null,
+            longitude: coords?.lng ?? null,
           })
           .returning();
         technicianId = newTech.id;

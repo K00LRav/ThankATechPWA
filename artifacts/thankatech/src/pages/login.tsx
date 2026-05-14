@@ -2,9 +2,22 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Wrench, User, LogIn, ArrowRight, Eye } from "lucide-react";
+import { Heart, Wrench, User, LogIn, ArrowRight, Eye, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
+
+const AVATAR_STYLES = [
+  { id: "micah",       label: "Micah",       desc: "Vibrant & colorful" },
+  { id: "avataaars",   label: "Avataaars",   desc: "Cartoon character" },
+  { id: "lorelei",     label: "Lorelei",     desc: "Elegant line art" },
+  { id: "notionists",  label: "Notionists",  desc: "Minimal & clean" },
+] as const;
+
+type AvatarStyleId = typeof AVATAR_STYLES[number]["id"];
+
+function dicebearUrl(style: AvatarStyleId, seed: string) {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}
 
 type UserType = "customer" | "technician";
 
@@ -170,18 +183,25 @@ export function Onboard() {
   const [fullName, setFullName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [serviceArea, setServiceArea] = useState("");
+  const [avatarStyle, setAvatarStyle] = useState<AvatarStyleId>("micah");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setLocation] = useLocation();
+
+  const seed = fullName.trim() || "ThankATech";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const avatarUrl = userType === "technician"
+        ? dicebearUrl(avatarStyle, seed)
+        : undefined;
+
       const res = await fetch("/api/profile/me", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userType, fullName, specialty, serviceArea }),
+        body: JSON.stringify({ userType, fullName, specialty, serviceArea, avatarUrl }),
       });
       if (res.ok) {
         localStorage.removeItem("onboard_role");
@@ -295,9 +315,43 @@ export function Onboard() {
                         type="text"
                         value={serviceArea}
                         onChange={e => setServiceArea(e.target.value)}
-                        placeholder="e.g. Downtown, Metro Area"
+                        placeholder="e.g. Austin, TX"
                         className="w-full h-11 px-4 rounded-lg border border-border bg-background focus:border-primary outline-none text-sm transition-colors"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-foreground block mb-3">
+                        Pick your avatar style
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {AVATAR_STYLES.map(style => (
+                          <button
+                            key={style.id}
+                            type="button"
+                            onClick={() => setAvatarStyle(style.id)}
+                            className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all ${
+                              avatarStyle === style.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/40"
+                            }`}
+                          >
+                            {avatarStyle === style.id && (
+                              <CheckCircle2 className="absolute top-1 right-1 w-3.5 h-3.5 text-primary" />
+                            )}
+                            <img
+                              src={dicebearUrl(style.id, seed)}
+                              alt={style.label}
+                              className="w-12 h-12 rounded-full bg-muted"
+                            />
+                            <span className="text-xs font-medium text-foreground leading-none">{style.label}</span>
+                            <span className="text-[10px] text-muted-foreground leading-none text-center">{style.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Your avatar is unique to your name — it updates as you type above.
+                      </p>
                     </div>
                   </>
                 )}

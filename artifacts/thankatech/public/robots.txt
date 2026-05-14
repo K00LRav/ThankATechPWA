@@ -1,2 +1,9 @@
 User-agent: *
 Allow: /
+
+Disallow: /customer/dashboard
+Disallow: /technician/dashboard
+Disallow: /onboard
+Disallow: /retry-tip/
+
+Sitemap: https://www.thankatech.com/sitemap.xml

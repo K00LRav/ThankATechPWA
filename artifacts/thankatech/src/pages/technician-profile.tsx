@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { useMyProfile } from "@/hooks/useMyProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TechAvatar } from "@/components/TechAvatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,12 +104,13 @@ export function TechnicianProfile() {
       <div className="bg-primary/10 pt-16 pb-24 px-4">
         <div className="container mx-auto max-w-4xl">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8 text-center md:text-left">
-            <Avatar className="w-32 h-32 border-4 border-background shadow-lg">
-              <AvatarImage src={tech.avatarUrl || ''} />
-              <AvatarFallback className="text-4xl bg-primary text-primary-foreground font-serif">
-                {tech.fullName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <TechAvatar
+              avatarUrl={tech.avatarUrl}
+              fullName={tech.fullName}
+              specialty={tech.specialty}
+              className="w-32 h-32 border-4 border-background shadow-lg"
+              iconSize={48}
+            />
             <div className="space-y-4 flex-1">
               <div>
                 <h1 className="text-4xl font-serif font-bold text-foreground">{tech.fullName}</h1>

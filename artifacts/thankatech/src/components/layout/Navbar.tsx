@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useMyProfile } from "@/hooks/useMyProfile";
 
+declare function gtag_report_conversion(url?: string): boolean;
+
 export function Navbar() {
   const [location] = useLocation();
   const { isAuthenticated, isLoading, login, logout, user } = useAuth();
@@ -82,13 +84,13 @@ export function Navbar() {
           ) : (
             <>
               <button
-                onClick={login}
+                onClick={() => { gtag_report_conversion(); login(); }}
                 className="text-sm font-medium hover:text-primary transition-colors hidden sm:block"
               >
                 Sign In
               </button>
               <Button
-                onClick={login}
+                onClick={() => { gtag_report_conversion(); login(); }}
                 className="rounded-full shadow-sm hover:shadow-md transition-all"
               >
                 Join Free

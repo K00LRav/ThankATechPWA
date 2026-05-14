@@ -25,6 +25,29 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
+    <!-- Google Ads tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17013805050"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-17013805050');
+    </script>
+
+    <!-- Google Ads conversion event snippet -->
+    <script>
+      function gtag_report_conversion(url) {
+        var callback = function () {
+          if (typeof(url) != 'undefined') { window.location = url; }
+        };
+        gtag('event', 'conversion', {
+          'send_to': 'AW-17013805050/DxdRCMXxy9wbEPqf6LA_',
+          'event_callback': callback
+        });
+        return false;
+      }
+    </script>
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

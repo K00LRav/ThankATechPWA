@@ -37,6 +37,122 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const TIMELINE_STEPS = [
+  { key: "pending", label: "Requested", icon: "time-outline" as const },
+  { key: "confirmed", label: "Confirmed", icon: "checkmark-circle-outline" as const },
+  { key: "in_progress", label: "In Progress", icon: "construct-outline" as const },
+  { key: "completed", label: "Completed", icon: "ribbon-outline" as const },
+];
+
+const STEP_ORDER: Record<string, number> = {
+  pending: 0,
+  confirmed: 1,
+  in_progress: 2,
+  completed: 3,
+};
+
+function StatusTimeline({ status }: { status: string }) {
+  const colors = useColors();
+
+  const isCancelled = status === "cancelled";
+  const isDeclined = status === "declined";
+  const isTerminated = isCancelled || isDeclined;
+
+  const activeIndex = STEP_ORDER[status] ?? -1;
+
+  return (
+    <View style={[timelineStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[timelineStyles.cardLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
+        Job Progress
+      </Text>
+
+      <View style={timelineStyles.stepsContainer}>
+        {TIMELINE_STEPS.map((step, index) => {
+          const isDone = !isTerminated && activeIndex > index;
+          const isActive = !isTerminated && activeIndex === index;
+          const isLast = index === TIMELINE_STEPS.length - 1;
+
+          const dotColor = isDone
+            ? colors.secondary
+            : isActive
+            ? colors.primary
+            : colors.border;
+
+          const lineColor = isDone ? colors.secondary : colors.border;
+
+          return (
+            <View key={step.key} style={timelineStyles.stepRow}>
+              <View style={timelineStyles.stepLeft}>
+                <View
+                  style={[
+                    timelineStyles.dot,
+                    {
+                      backgroundColor: dotColor,
+                      borderColor: isActive ? colors.primary : dotColor,
+                      transform: [{ scale: isActive ? 1.15 : 1 }],
+                    },
+                  ]}
+                >
+                  {(isDone || isActive) && (
+                    <Ionicons
+                      name={isDone ? "checkmark" : step.icon}
+                      size={isDone ? 11 : 13}
+                      color="#fff"
+                    />
+                  )}
+                </View>
+                {!isLast && (
+                  <View style={[timelineStyles.connector, { backgroundColor: lineColor }]} />
+                )}
+              </View>
+              <View style={[timelineStyles.stepContent, isLast ? { paddingBottom: 0 } : null]}>
+                <Text
+                  style={[
+                    timelineStyles.stepLabel,
+                    {
+                      color: isActive
+                        ? colors.primary
+                        : isDone
+                        ? colors.foreground
+                        : colors.mutedForeground,
+                      fontFamily: isActive ? "Inter_600SemiBold" : "Inter_400Regular",
+                    },
+                  ]}
+                >
+                  {step.label}
+                </Text>
+                {isActive && !isTerminated && (
+                  <Text style={[timelineStyles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                    Current status
+                  </Text>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {isTerminated && (
+          <View style={timelineStyles.stepRow}>
+            <View style={timelineStyles.stepLeft}>
+              <View style={[timelineStyles.dot, { backgroundColor: colors.destructive, borderColor: colors.destructive }]}>
+                <Ionicons name="close" size={13} color="#fff" />
+              </View>
+            </View>
+            <View style={[timelineStyles.stepContent, { paddingBottom: 0 }]}>
+              <Text style={[timelineStyles.stepLabel, { color: colors.destructive, fontFamily: "Inter_600SemiBold" }]}>
+                {isCancelled ? "Cancelled" : "Declined"}
+              </Text>
+              <Text style={[timelineStyles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                {isCancelled ? "This job was cancelled" : "The technician declined this job"}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 function DetailRow({
   icon,
   label,
@@ -164,6 +280,8 @@ export default function JobDetailScreen() {
           </Text>
           <StatusBadge status={job.status} />
         </View>
+
+        <StatusTimeline status={job.status} />
 
         {job.description ? (
           <View style={[styles.descriptionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -317,4 +435,56 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   thankBtnText: { color: "#fff", fontSize: 17 },
+});
+
+const timelineStyles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 16,
+  },
+  cardLabel: {
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  stepsContainer: {
+    gap: 0,
+  },
+  stepRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  stepLeft: {
+    alignItems: "center",
+    width: 26,
+  },
+  dot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  connector: {
+    width: 2,
+    flex: 1,
+    minHeight: 18,
+    marginVertical: 3,
+  },
+  stepContent: {
+    flex: 1,
+    paddingBottom: 20,
+    justifyContent: "center",
+    minHeight: 26,
+    gap: 2,
+  },
+  stepLabel: {
+    fontSize: 15,
+  },
+  stepSub: {
+    fontSize: 12,
+  },
 });

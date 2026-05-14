@@ -1,26 +1,34 @@
-import nodemailer from "nodemailer";
 import { logger } from "./logger";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_SMTP_SERVER ?? "smtp-relay.brevo.com",
-  port: parseInt(process.env.BREVO_SMTP_PORT ?? "587"),
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SMTP_LOGIN,
-    pass: process.env.BREVO_SMTP_KEY,
-  },
-});
-
-const FROM = `"${process.env.EMAIL_FROM_NAME ?? "ThankATech"}" <${process.env.EMAIL_FROM ?? "noreply@thankatech.com"}>`;
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (!process.env.BREVO_SMTP_KEY) {
-    logger.warn("BREVO_SMTP_KEY not set — skipping email send");
+  if (!process.env.BREVO_API_KEY) {
+    logger.warn("BREVO_API_KEY not set — skipping email send");
     return;
   }
+  const senderEmail = process.env.EMAIL_FROM ?? "noreply@thankatech.com";
+  const senderName = process.env.EMAIL_FROM_NAME ?? "ThankATech";
   try {
-    await transporter.sendMail({ from: FROM, to, subject, html });
-    logger.info({ to, subject }, "Email sent");
+    const res = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "api-key": process.env.BREVO_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      logger.error({ to, subject, status: res.status, body }, "Brevo API email failed");
+    } else {
+      logger.info({ to, subject }, "Email sent");
+    }
   } catch (err) {
     logger.error({ err, to, subject }, "Failed to send email");
   }

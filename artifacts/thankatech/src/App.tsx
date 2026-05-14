@@ -13,6 +13,7 @@ import { TechnicianDashboard } from "@/pages/technician-dashboard";
 import { ThankFlow } from "@/pages/thank-flow";
 import { Login, Onboard } from "@/pages/login";
 import { RetryTip } from "@/pages/retry-tip";
+import { JobDetail } from "@/pages/job-detail";
 import { About } from "@/pages/about";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -45,6 +46,11 @@ function Router() {
           <Route path="/retry-tip/:thankMessageId">
             <ProtectedRoute requireProfile requireUserType="customer">
               <RetryTip />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/jobs/:id">
+            <ProtectedRoute requireProfile requireUserType="customer">
+              <JobDetail />
             </ProtectedRoute>
           </Route>
           <Route path="/about" component={About} />

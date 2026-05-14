@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useListJobs, useListThankMessages, useUpdateJob, getListJobsQueryKey, getListThankMessagesQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -128,6 +128,7 @@ export function CustomerDashboard() {
   const profile = profileEnvelope?.profile;
   const profileId = profile?.profileId;
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [cancelConfirmJobId, setCancelConfirmJobId] = useState<number | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
@@ -207,7 +208,11 @@ export function CustomerDashboard() {
                 const hasThanked = thanked !== undefined;
                 const timelineStatus = job.status === "completed" && hasThanked ? "thanked" : job.status;
                 return (
-                  <Card key={job.id} className="overflow-hidden transition-all hover:shadow-md">
+                  <Card
+                    key={job.id}
+                    className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
+                    onClick={() => navigate(`/jobs/${job.id}`)}
+                  >
                     <CardContent className="p-0">
                       <div className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                         <div className="space-y-2 flex-1">
@@ -221,7 +226,10 @@ export function CustomerDashboard() {
                               </Badge>
                             )}
                             {hasRetryable && (
-                              <Link href={`/retry-tip/${retryable.thankMessageId}`}>
+                              <Link
+                                href={`/retry-tip/${retryable.thankMessageId}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <Badge variant="destructive" className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
                                   <AlertCircle className="w-3 h-3" />
                                   Payment failed — tap to retry
@@ -271,7 +279,10 @@ export function CustomerDashboard() {
                           )}
                         </div>
 
-                        <div className="w-full md:w-auto flex flex-col gap-2">
+                        <div
+                          className="w-full md:w-auto flex flex-col gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {job.status === 'completed' && hasRetryable ? (
                             <Button asChild className="w-full md:w-auto rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-sm" size="lg">
                               <Link href={`/retry-tip/${retryable.thankMessageId}`}>

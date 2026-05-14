@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "NNxYvvs4OdSzitWYJnhme"
 uri = "file://artifacts/thankatech-mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "Ctx5pend0okNQLd8PzS-p"
+uri = "file://artifacts/thankatech/public/twitter-banner.svg"
+type = "image"
+title = "ThankATech Twitter Banner (1500×500)"

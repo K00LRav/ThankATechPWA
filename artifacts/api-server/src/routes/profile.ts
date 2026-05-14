@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { profilesTable, techniciansTable } from "@workspace/db";
+import { profilesTable, techniciansTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { sendEmail, emailWelcome } from "../lib/mailer";
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.post("/profile/me", async (req: Request, res: Response) => {
       .from(profilesTable)
       .where(eq(profilesTable.userId, userId));
 
+    const isNew = !existing;
     let profile;
     if (existing) {
       [profile] = await db
@@ -105,6 +107,15 @@ router.post("/profile/me", async (req: Request, res: Response) => {
           })
           .returning();
         technicianId = newTech.id;
+      }
+    }
+
+    // Send welcome email to new users only (fire-and-forget)
+    if (isNew) {
+      const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId));
+      if (user?.email) {
+        const tpl = emailWelcome({ fullName, userType: userType as "customer" | "technician" });
+        sendEmail(user.email, tpl.subject, tpl.html).catch(() => {});
       }
     }
 

@@ -13,6 +13,7 @@ import { TechnicianDashboard } from "@/pages/technician-dashboard";
 import { ThankFlow } from "@/pages/thank-flow";
 import { Login, Onboard } from "@/pages/login";
 import { RetryTip } from "@/pages/retry-tip";
+import { About } from "@/pages/about";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ function Router() {
               <RetryTip />
             </ProtectedRoute>
           </Route>
+          <Route path="/about" component={About} />
           <Route path="/login" component={Login} />
           <Route path="/onboard">
             <ProtectedRoute>

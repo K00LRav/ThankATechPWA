@@ -259,6 +259,79 @@ export function emailThankReceived(opts: {
   return { subject, html };
 }
 
+// ─── Template: Welcome (→ new user after onboarding) ─────────────────────────
+
+export function emailWelcome(opts: {
+  fullName: string;
+  userType: "customer" | "technician";
+}): { subject: string; html: string } {
+  const isCustomer = opts.userType === "customer";
+  const subject = isCustomer
+    ? `Welcome to ThankATech, ${opts.fullName}!`
+    : `Welcome to ThankATech, ${opts.fullName} — you're now listed as a technician!`;
+
+  const html = layout(isCustomer ? `
+    <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#2d2926;">Welcome to ThankATech! 🎉</h1>
+    <p style="margin:0 0 24px;color:#6b5f53;font-size:15px;">Hi ${opts.fullName}, you're all set. ThankATech is a gratitude-first marketplace built for the people who keep things running.</p>
+
+    <div style="background:#fff8f5;border-radius:10px;border:1px solid #fde8dc;padding:24px;margin-bottom:24px;">
+      <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#2d2926;">Here's how it works:</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#6b5f53;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">🔍</span> <strong style="color:#2d2926;">Browse</strong> — Find a skilled technician by specialty or area
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#6b5f53;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">📋</span> <strong style="color:#2d2926;">Book</strong> — Request a job and wait for confirmation
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#6b5f53;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">❤️</span> <strong style="color:#2d2926;">Thank</strong> — When the job's done, send a heartfelt message and optional tip
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="margin:0 0 24px;color:#9c8f7e;font-size:13px;line-height:1.6;">No star ratings. No reviews to game. Just genuine human appreciation for a job well done.</p>
+    ${btn("Browse technicians", "https://www.thankatech.com/browse")}
+  ` : `
+    <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#166534;">You're live on ThankATech! 🔧</h1>
+    <p style="margin:0 0 24px;color:#6b5f53;font-size:15px;">Hi ${opts.fullName}, your technician profile is now active. Customers can find and book you right away.</p>
+
+    <div style="background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;padding:24px;margin-bottom:24px;">
+      <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#14532d;">What happens next:</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#166534;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">📬</span> <strong>Job requests</strong> — Customers will send you booking requests to accept or decline
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#166534;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">✅</span> <strong>Mark complete</strong> — Once finished, mark the job done to prompt the customer to thank you
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#166534;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">💵</span> <strong>Earn tips</strong> — Customers can leave optional tips paid directly via Stripe
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#166534;vertical-align:top;">
+            <span style="font-size:18px;margin-right:10px;">❤️</span> <strong>Wall of Thanks</strong> — Every thank you message builds your public reputation
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    ${btn("Go to my dashboard", "https://www.thankatech.com/technician/dashboard", "#166534")}
+  `);
+  return { subject, html };
+}
+
 // ─── Template: Tip payment confirmed (→ technician) ──────────────────────────
 
 export function emailTipConfirmed(opts: {

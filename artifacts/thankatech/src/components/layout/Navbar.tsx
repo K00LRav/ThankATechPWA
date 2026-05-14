@@ -27,6 +27,9 @@ export function Navbar() {
           <Link href="/browse" className={`text-sm font-medium transition-colors hover:text-primary ${location === '/browse' ? 'text-primary' : 'text-muted-foreground'}`}>
             Browse Techs
           </Link>
+          <Link href="/about" className={`text-sm font-medium transition-colors hover:text-primary ${location === '/about' ? 'text-primary' : 'text-muted-foreground'}`}>
+            About
+          </Link>
           {isAuthenticated && profile?.userType === "customer" && (
             <Link href="/customer/dashboard" className={`text-sm font-medium transition-colors hover:text-primary ${location === '/customer/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
               My Dashboard

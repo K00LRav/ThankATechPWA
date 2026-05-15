@@ -27,6 +27,7 @@ import {
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import * as Haptics from "expo-haptics";
+import { TechAvatar } from "@/components/TechAvatar";
 
 function ThankCard({ item }: { item: {
   id: number;
@@ -413,7 +414,6 @@ export default function TechnicianProfileScreen() {
     );
   }
 
-  const initials = tech.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const topPadding = isWeb ? 67 : insets.top;
 
   const ListHeader = () => (
@@ -430,9 +430,7 @@ export default function TechnicianProfileScreen() {
 
       {/* Hero */}
       <View style={styles.heroSection}>
-        <View style={[styles.heroAvatar, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.heroInitials, { fontFamily: "Inter_700Bold" }]}>{initials}</Text>
-        </View>
+        <TechAvatar specialty={tech.specialty} size={80} />
         <Text style={[styles.heroName, { color: colors.foreground, fontFamily: "PlayfairDisplay_700Bold" }]}>
           {tech.fullName}
         </Text>
@@ -566,15 +564,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   heroSection: { alignItems: "center", paddingHorizontal: 20, marginBottom: 24 },
-  heroAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  heroInitials: { color: "#fff", fontSize: 32 },
   heroName: { fontSize: 26, marginBottom: 10, textAlign: "center" },
   heroMeta: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 12 },
   specialtyBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },

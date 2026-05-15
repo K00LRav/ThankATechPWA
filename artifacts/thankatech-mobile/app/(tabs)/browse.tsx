@@ -14,6 +14,7 @@ import { Ionicons, Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useListTechnicians } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { TechAvatar } from "@/components/TechAvatar";
 
 const SPECIALTIES = ["All", "HVAC", "Plumbing", "Electrical", "Appliances", "Carpentry", "Painting"];
 
@@ -29,8 +30,6 @@ function TechnicianCard({ item }: { item: {
 }}) {
   const colors = useColors();
   const router = useRouter();
-  const initials = item.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-
   return (
     <TouchableOpacity
       style={[styles.techCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -38,11 +37,7 @@ function TechnicianCard({ item }: { item: {
       activeOpacity={0.75}
       testID={`technician-card-${item.id}`}
     >
-      <View style={[styles.techAvatar, { backgroundColor: colors.primary + "20" }]}>
-        <Text style={[styles.techInitials, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-          {initials}
-        </Text>
-      </View>
+      <TechAvatar specialty={item.specialty} size={52} />
       <View style={styles.techInfo}>
         <Text style={[styles.techName, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
           {item.fullName}
@@ -230,15 +225,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 12,
   },
-  techAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  techInitials: { fontSize: 20 },
   techInfo: { flex: 1 },
   techName: { fontSize: 16, marginBottom: 6 },
   techMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 },

@@ -236,11 +236,12 @@ export function TechnicianDashboard() {
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard icon={<Heart className="text-primary" />} title="Total Thanks" value={stats?.totalThanks || 0} />
             <StatCard icon={<DollarSign className="text-green-600" />} title="Tips Earned" value={`$${stats?.totalEarned?.toFixed(2) || "0.00"}`} />
-            <StatCard icon={<TrendingUp className="text-blue-500" />} title="Avg Tip" value={`$${stats?.avgTipAmount || 0}`} />
+            <StatCard icon={<TrendingUp className="text-blue-500" />} title="Avg Tip" value={`$${(stats?.avgTipAmount ?? 0).toFixed(2)}`} />
             <StatCard icon={<CheckCircle2 className="text-secondary" />} title="Jobs Completed" value={stats?.totalJobs || 0} />
+            <StatCard icon={<Sparkles className="text-amber-500" />} title="ThankYou Points" value={isPointsLoading ? "—" : `${balance} pts`} />
           </div>
         )}
 

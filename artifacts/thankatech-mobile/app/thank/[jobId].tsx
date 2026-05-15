@@ -309,7 +309,7 @@ export default function ThankFlowScreen() {
             Add a tip
           </Text>
           <Text style={[styles.stepSubtitle, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            Optional — 100% goes to {job?.technicianName ?? "the technician"}
+            Optional — 91% goes directly to {job?.technicianName?.split(" ")[0] ?? "the technician"}
           </Text>
 
           {/* Preset amounts */}
@@ -388,11 +388,35 @@ export default function ThankFlowScreen() {
           )}
 
           {effectiveTip > 0 && (
-            <View style={[styles.tipSummary, { backgroundColor: colors.secondary + "15" }]}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.secondary} />
-              <Text style={[styles.tipSummaryText, { color: colors.secondary, fontFamily: "Inter_500Medium" }]}>
-                ${effectiveTip} tip selected
-              </Text>
+            <View style={[styles.feeBreakdown, { backgroundColor: colors.secondary + "12", borderColor: colors.secondary + "30" }]}>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
+                  {job?.technicianName?.split(" ")[0] ?? "Technician"} receives{" "}
+                  <Text style={[styles.feePct, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>(91%)</Text>
+                </Text>
+                <Text style={[styles.feeValue, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                  ${(effectiveTip * 0.91).toFixed(2)}
+                </Text>
+              </View>
+              <View style={[styles.feeDivider, { backgroundColor: colors.secondary + "25" }]} />
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
+                  Platform fee{" "}
+                  <Text style={[styles.feePct, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>(9%)</Text>
+                </Text>
+                <Text style={[styles.feeValue, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                  ${(effectiveTip * 0.09).toFixed(2)}
+                </Text>
+              </View>
+              <View style={[styles.feeDivider, { backgroundColor: colors.secondary + "25" }]} />
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeTotalLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
+                  Total charged
+                </Text>
+                <Text style={[styles.feeTotalValue, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+                  ${Number(effectiveTip).toFixed(2)}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -502,14 +526,24 @@ const styles = StyleSheet.create({
   },
   dollarSign: { fontSize: 20, marginRight: 4 },
   customTipInput: { flex: 1, fontSize: 20, padding: 0 },
-  tipSummary: {
+  feeBreakdown: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  feeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    padding: 12,
-    borderRadius: 10,
+    justifyContent: "space-between",
   },
-  tipSummaryText: { fontSize: 14 },
+  feeLabel: { fontSize: 14 },
+  feePct: { fontSize: 13 },
+  feeValue: { fontSize: 14 },
+  feeDivider: { height: 1 },
+  feeTotalLabel: { fontSize: 15 },
+  feeTotalValue: { fontSize: 15 },
   backLink: { alignItems: "center", paddingVertical: 4 },
   backLinkText: { fontSize: 14 },
   // Celebrate

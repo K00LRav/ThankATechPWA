@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Wrench, User, LogIn, ArrowRight, Eye, CheckCircle2 } from "lucide-react";
@@ -186,6 +187,7 @@ export function Onboard() {
   const [avatarStyle, setAvatarStyle] = useState<AvatarStyleId>("micah");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const seed = fullName.trim() || "ThankATech";
 
@@ -206,6 +208,9 @@ export function Onboard() {
       if (res.ok) {
         localStorage.removeItem("onboard_role");
         const data = await res.json();
+        // Invalidate cached profile so ProtectedRoute sees the new profile
+        // immediately instead of redirecting back to /onboard.
+        await queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
         if (data.userType === "technician") {
           setLocation("/technician/dashboard");
         } else {

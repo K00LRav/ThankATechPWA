@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Heart, Star, DollarSign, Shield, Users, Wrench, ArrowRight } from "lucide-react";
+import { Heart, Star, DollarSign, Shield, Users, Wrench, ArrowRight, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function About() {
@@ -56,8 +56,44 @@ export function About() {
         </div>
       </section>
 
-      {/* How it works */}
+      {/* Founder story */}
       <section className="py-20 px-4 bg-muted/20">
+        <div className="container mx-auto max-w-3xl">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium mb-4">
+              <Wrench size={14} />
+              Where it all started
+            </div>
+            <h2 className="font-serif text-3xl font-bold text-foreground">Built by a tech, for techs</h2>
+          </div>
+          <div className="relative bg-white rounded-2xl border border-primary/15 shadow-sm p-8 md:p-12">
+            <Quote size={40} className="text-primary/15 absolute top-6 left-7" />
+            <div className="relative space-y-5 text-muted-foreground leading-relaxed text-lg">
+              <p>
+                Our founder spent <span className="font-semibold text-foreground">15 years in the field</span> — crawling through attics, diagnosing circuits, fixing what other people couldn't. Like most skilled tradespeople, he showed up on time, solved the problem, and got on with the next job.
+              </p>
+              <p>
+                But after hundreds of jobs and thousands of hours of honest work, one thing always stuck with him: <span className="font-semibold text-foreground">technicians are rarely thanked.</span> Customers move on. Platforms ask for star ratings that feel impersonal and often unfair. The real gratitude — the kind that keeps a person going — almost never makes it back to the person who earned it.
+              </p>
+              <p>
+                ThankATech was built to fix that. Not as a review platform. Not as a ratings game. But as a place where a customer can say <span className="italic">"thank you, you made my day easier"</span> — and mean it — and where that message actually reaches the person who deserves to hear it.
+              </p>
+            </div>
+            <div className="mt-8 pt-6 border-t border-primary/10 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Wrench size={18} className="text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">The ThankATech Founder</p>
+                <p className="text-xs text-muted-foreground">15 years in the field · 1 idea that wouldn't let go</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 px-4 bg-background">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-14">
             <h2 className="font-serif text-3xl font-bold text-foreground mb-3">How it works</h2>

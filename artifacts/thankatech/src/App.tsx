@@ -17,6 +17,7 @@ import { JobDetail } from "@/pages/job-detail";
 import { About } from "@/pages/about";
 import { Terms } from "@/pages/terms";
 import { Privacy } from "@/pages/privacy";
+import { Admin } from "@/pages/admin";
 import { Footer } from "@/components/layout/Footer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 

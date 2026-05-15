@@ -97,7 +97,7 @@ export function TechnicianDashboard() {
   async function handleStripeConnect() {
     try {
       const result = await createOnboarding.mutateAsync(undefined);
-      window.location.href = result.url;
+      window.open(result.url, "_blank", "noopener,noreferrer");
     } catch {
     }
   }

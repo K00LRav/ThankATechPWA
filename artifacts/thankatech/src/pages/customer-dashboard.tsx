@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useListJobs, useListThankMessages, useUpdateJob, getListJobsQueryKey, getListThankMessagesQueryKey } from "@workspace/api-client-react";
+import {
+  useListJobs, useListThankMessages, useUpdateJob,
+  useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints,
+  getListJobsQueryKey, getListThankMessagesQueryKey,
+  getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey,
+} from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Wrench, ThumbsUp } from "lucide-react";
+import {
+  Heart, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Wrench,
+  ThumbsUp, Star, Sparkles, Tag, TrendingUp, Gift, Search,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
@@ -19,6 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const REWARD_ICONS: Record<string, React.ReactNode> = {
+  appreciation_star: <Star className="w-5 h-5 text-yellow-500" />,
+  tip_discount_5:    <Tag className="w-5 h-5 text-green-600" />,
+  featured_profile:  <TrendingUp className="w-5 h-5 text-blue-500" />,
+};
 
 function JobStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -64,17 +78,14 @@ function JobStatusBadge({ status }: { status: string }) {
 type JobStatus = "pending" | "confirmed" | "completed" | "declined" | "cancelled";
 
 const JOB_STEPS: { key: JobStatus | "thanked"; label: string; icon: React.ReactNode }[] = [
-  { key: "pending",   label: "Requested",  icon: <Clock className="w-3.5 h-3.5" /> },
-  { key: "confirmed", label: "Accepted",   icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  { key: "pending",   label: "Requested",   icon: <Clock className="w-3.5 h-3.5" /> },
+  { key: "confirmed", label: "Accepted",    icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
   { key: "completed", label: "In Progress", icon: <Wrench className="w-3.5 h-3.5" /> },
-  { key: "thanked",   label: "Done",       icon: <ThumbsUp className="w-3.5 h-3.5" /> },
+  { key: "thanked",   label: "Done",        icon: <ThumbsUp className="w-3.5 h-3.5" /> },
 ];
 
 const STATUS_STEP_INDEX: Record<string, number> = {
-  pending:   0,
-  confirmed: 1,
-  completed: 2,
-  thanked:   3,
+  pending: 0, confirmed: 1, completed: 2, thanked: 3,
 };
 
 function JobProgressTimeline({ status }: { status: string }) {
@@ -129,6 +140,7 @@ export function CustomerDashboard() {
   const profileId = profile?.profileId;
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const [redeeming, setRedeeming] = useState<string | null>(null);
 
   const [cancelConfirmJobId, setCancelConfirmJobId] = useState<number | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
@@ -145,6 +157,20 @@ export function CustomerDashboard() {
     { query: { enabled: !!profileId, queryKey: getListThankMessagesQueryKey({ customerId: profileId }) } }
   );
 
+  const { data: points, isLoading: isPointsLoading } = useGetPoints(profileId!, {
+    query: { enabled: !!profileId, queryKey: getGetPointsQueryKey(profileId!) }
+  });
+
+  const { data: pointTransactions } = useGetPointTransactions(profileId!, {
+    query: { enabled: !!profileId, queryKey: getGetPointTransactionsQueryKey(profileId!) }
+  });
+
+  const { data: rewards } = useListRewards({
+    query: { queryKey: getListRewardsQueryKey() }
+  });
+
+  const redeemMutation = useRedeemPoints();
+
   const retryableByJobId = new Map(
     (thankMessages ?? [])
       .filter(t => t.paymentStatus === "failed")
@@ -154,6 +180,11 @@ export function CustomerDashboard() {
   const thankedByJobId = new Map(
     (thankMessages ?? []).map(t => [t.jobId, { thankMessageId: t.id, technicianId: t.technicianId }])
   );
+
+  const totalTipsSent = (thankMessages ?? []).reduce((sum, t) => sum + Number(t.tipAmount ?? 0), 0);
+  const totalThanksSent = (thankMessages ?? []).length;
+  const totalJobs = (jobs ?? []).length;
+  const pointBalance = points?.balance ?? 0;
 
   async function handleCancelJob(jobId: number) {
     setCancellingJobId(jobId);
@@ -169,13 +200,28 @@ export function CustomerDashboard() {
     }
   }
 
+  async function handleRedeem(rewardId: string) {
+    if (!profileId) return;
+    setRedeeming(rewardId);
+    try {
+      await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } });
+      await queryClient.invalidateQueries({ queryKey: getGetPointsQueryKey(profileId) });
+      await queryClient.invalidateQueries({ queryKey: getGetPointTransactionsQueryKey(profileId) });
+      toast.success("Reward redeemed! Check your email for details.");
+    } catch {
+      toast.error("Could not redeem reward. Make sure you have enough points.");
+    } finally {
+      setRedeeming(null);
+    }
+  }
+
   if (!profileId) {
     return (
       <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
         <div className="container mx-auto max-w-5xl space-y-8">
           <Skeleton className="h-12 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
           </div>
         </div>
       </div>
@@ -185,15 +231,87 @@ export function CustomerDashboard() {
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
       <div className="container mx-auto max-w-5xl space-y-8">
-        <div>
-          <h1 className="text-3xl font-serif font-bold">My Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}! Manage your jobs and send gratitude.
-          </p>
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-serif font-bold">My Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}! Manage your jobs and send gratitude.
+            </p>
+          </div>
+          <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm self-start sm:self-auto">
+            <Link href="/browse">
+              <Search className="mr-2 h-4 w-4" />
+              Find a Tech
+            </Link>
+          </Button>
         </div>
 
-        <div className="space-y-6">
-          <h2 className="text xl font-bold text-foreground border-b pb-2">Recent Jobs</h2>
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="rounded-2xl border-0 shadow-sm bg-card">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Wrench className="w-4 h-4 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">Jobs Booked</span>
+              </div>
+              {isJobsLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-3xl font-bold">{totalJobs}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-card">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center">
+                  <Heart className="w-4 h-4 text-rose-500" fill="currentColor" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">Thanks Sent</span>
+              </div>
+              <p className="text-3xl font-bold">{totalThanksSent}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-card">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 font-bold text-sm">$</span>
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">Tips Sent</span>
+              </div>
+              <p className="text-3xl font-bold">
+                ${totalTipsSent.toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-secondary/15 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-secondary" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">ThankYou Points</span>
+              </div>
+              {isPointsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-3xl font-bold text-secondary">{pointBalance.toLocaleString()}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Jobs list */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-foreground border-b pb-2">Recent Jobs</h2>
 
           {isJobsLoading ? (
             <div className="space-y-4">
@@ -283,39 +401,37 @@ export function CustomerDashboard() {
                           className="w-full md:w-auto flex flex-col gap-2"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {job.status === 'completed' && hasRetryable ? (
+                          {job.status === "completed" && hasRetryable ? (
                             <Button asChild className="w-full md:w-auto rounded-full bg-destructive hover:bg-destructive/90 text-white shadow-sm" size="lg">
                               <Link href={`/retry-tip/${retryable.thankMessageId}`}>
                                 <AlertCircle className="mr-2 h-4 w-4" />
                                 Retry tip payment
                               </Link>
                             </Button>
-                          ) : job.status === 'completed' && hasThanked ? (
+                          ) : job.status === "completed" && hasThanked ? (
                             <Button asChild variant="outline" className="w-full md:w-auto rounded-full border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800/40 dark:text-green-400 dark:hover:bg-green-900/20" size="lg">
                               <Link href={`/technician/${thanked.technicianId}`}>
                                 <Heart className="mr-2 h-4 w-4" fill="currentColor" />
                                 View thanks
                               </Link>
                             </Button>
-                          ) : job.status === 'completed' ? (
+                          ) : job.status === "completed" ? (
                             <Button asChild className="w-full md:w-auto rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm" size="lg">
                               <Link href={`/thank/${job.id}`}>
                                 <Heart className="mr-2 h-4 w-4" fill="currentColor" />
                                 Say Thank You
                               </Link>
                             </Button>
-                          ) : job.status === 'declined' ? (
+                          ) : job.status === "declined" ? (
                             <Button asChild variant="outline" className="w-full md:w-auto rounded-full">
-                              <Link href="/browse">
-                                Find Another Tech
-                              </Link>
+                              <Link href="/browse">Find Another Tech</Link>
                             </Button>
-                          ) : job.status === 'cancelled' ? (
+                          ) : job.status === "cancelled" ? (
                             <Button disabled variant="outline" className="w-full md:w-auto rounded-full opacity-60">
                               <XCircle className="mr-2 h-4 w-4" />
                               Cancelled
                             </Button>
-                          ) : job.status === 'pending' ? (
+                          ) : job.status === "pending" ? (
                             <Button
                               variant="outline"
                               className="w-full md:w-auto rounded-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
@@ -349,6 +465,98 @@ export function CustomerDashboard() {
             </div>
           )}
         </div>
+
+        {/* ThankYou Points */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-xl font-bold text-foreground">ThankYou Points</h2>
+            <div className="flex items-center gap-2 text-secondary font-semibold">
+              <Sparkles className="w-4 h-4" />
+              <span>{pointBalance.toLocaleString()} pts</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* How you earn */}
+            <Card className="rounded-2xl border-0 shadow-sm bg-card">
+              <CardContent className="p-5 space-y-3">
+                <p className="text-sm font-semibold text-foreground mb-3">How you earn points</p>
+                {[
+                  { label: "Send a thank you message", pts: "+15 pts" },
+                  { label: "Book a job", pts: "+20 pts" },
+                  { label: "Include a tip", pts: "+50 pts" },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <span className="font-semibold text-secondary">{item.pts}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Recent point activity */}
+            <Card className="rounded-2xl border-0 shadow-sm bg-card">
+              <CardContent className="p-5">
+                <p className="text-sm font-semibold text-foreground mb-3">Recent activity</p>
+                {(pointTransactions ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No points earned yet — send your first thank you!</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(pointTransactions ?? []).slice(0, 5).map(tx => (
+                      <div key={tx.id} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground truncate pr-2">{tx.description}</span>
+                        <span className={`font-semibold flex-shrink-0 ${Number(tx.amount) > 0 ? "text-secondary" : "text-destructive"}`}>
+                          {Number(tx.amount) > 0 ? "+" : ""}{tx.amount} pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Rewards */}
+        {(rewards ?? []).length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground border-b pb-2">Redeem Rewards</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {(rewards ?? []).map(reward => {
+                const canAfford = pointBalance >= (reward.cost ?? 0);
+                const icon = REWARD_ICONS[reward.id ?? ""] ?? <Gift className="w-5 h-5 text-primary" />;
+                return (
+                  <Card key={reward.id} className={`rounded-2xl border shadow-sm transition-all ${canAfford ? "border-secondary/20 bg-gradient-to-br from-secondary/5 to-transparent" : "opacity-60"}`}>
+                    <CardContent className="p-5 flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                          {icon}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm leading-tight">{reward.name}</p>
+                          <p className="text-xs text-muted-foreground">{reward.cost?.toLocaleString()} pts required</p>
+                        </div>
+                      </div>
+                      {reward.description && (
+                        <p className="text-xs text-muted-foreground">{reward.description}</p>
+                      )}
+                      <Button
+                        size="sm"
+                        className="rounded-full mt-auto"
+                        variant={canAfford ? "default" : "outline"}
+                        disabled={!canAfford || redeeming === reward.id}
+                        onClick={() => reward.id && handleRedeem(reward.id)}
+                      >
+                        {redeeming === reward.id ? "Redeeming..." : canAfford ? "Redeem" : "Not enough points"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
       <AlertDialog open={cancelConfirmJobId !== null} onOpenChange={(open) => { if (!open) setCancelConfirmJobId(null); }}>
@@ -376,6 +584,8 @@ export function CustomerDashboard() {
 
 function WrenchIcon({ size }: { size: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    </svg>
   );
 }

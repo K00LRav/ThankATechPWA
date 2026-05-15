@@ -29,7 +29,7 @@ export function About() {
             <div>
               <h2 className="font-serif text-3xl font-bold text-foreground mb-4">The broken status quo</h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Most platforms make technicians anxious about star ratings. One difficult customer — maybe someone impossible to please — can tank a professional's reputation overnight, regardless of the quality of their work.
+                Most platforms make technicians anxious about star ratings. One difficult customer — maybe someone impossible to please — can destroy a professional's reputation overnight, regardless of the quality of their work.
               </p>
               <p className="text-muted-foreground leading-relaxed">
                 Technicians end up performing for the algorithm instead of focusing on the job. That's backwards. We built something different.
@@ -70,7 +70,7 @@ export function About() {
             <Quote size={40} className="text-primary/15 absolute top-6 left-7" />
             <div className="relative space-y-5 text-muted-foreground leading-relaxed text-lg">
               <p>
-                Our founder spent <span className="font-semibold text-foreground">15 years in the field</span> — crawling through attics, diagnosing circuits, fixing what other people couldn't. Like most skilled tradespeople, he showed up on time, solved the problem, and got on with the next job.
+                Our founder spent <span className="font-semibold text-foreground">15 years as an automotive technician</span> — diagnosing complex problems, doing precision work under pressure, and fixing what other people couldn't. Like most skilled tradespeople, he showed up on time, solved the problem, and got on with the next job.
               </p>
               <p>
                 But after hundreds of jobs and thousands of hours of honest work, one thing always stuck with him: <span className="font-semibold text-foreground">technicians are rarely thanked.</span> Customers move on. Platforms ask for star ratings that feel impersonal and often unfair. The real gratitude — the kind that keeps a person going — almost never makes it back to the person who earned it.

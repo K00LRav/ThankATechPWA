@@ -15,6 +15,9 @@ import { Login, Onboard } from "@/pages/login";
 import { RetryTip } from "@/pages/retry-tip";
 import { JobDetail } from "@/pages/job-detail";
 import { About } from "@/pages/about";
+import { Terms } from "@/pages/terms";
+import { Privacy } from "@/pages/privacy";
+import { Footer } from "@/components/layout/Footer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -54,6 +57,8 @@ function Router() {
             </ProtectedRoute>
           </Route>
           <Route path="/about" component={About} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/privacy" component={Privacy} />
           <Route path="/login" component={Login} />
           <Route path="/onboard">
             <ProtectedRoute>
@@ -63,6 +68,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
+      <Footer />
     </div>
   );
 }

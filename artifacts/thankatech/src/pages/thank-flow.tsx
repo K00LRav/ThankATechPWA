@@ -195,6 +195,9 @@ export function ThankFlow() {
           setSubmitError(msg);
         }
       } else {
+        if (typeof (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion === "function") {
+          (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion!();
+        }
         setStep("celebration");
       }
     } catch (err: unknown) {
@@ -228,6 +231,9 @@ export function ThankFlow() {
       }
     }
     setIsCancellingPayment(false);
+    if (typeof (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion === "function") {
+      (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion!();
+    }
     setStep("celebration");
   }
 

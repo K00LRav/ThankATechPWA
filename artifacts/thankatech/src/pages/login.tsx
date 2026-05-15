@@ -191,6 +191,10 @@ export function Onboard() {
         // Invalidate cached profile so ProtectedRoute sees the new profile
         // immediately instead of redirecting back to /onboard.
         await queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+        // Fire Google Ads conversion for new user sign-up
+        if (typeof (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion === "function") {
+          (window as Window & { gtag_report_conversion?: () => void }).gtag_report_conversion!();
+        }
         if (data.userType === "technician") {
           setLocation("/technician/dashboard");
         } else {

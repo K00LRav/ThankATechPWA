@@ -97,7 +97,7 @@ export function Privacy() {
               <li>Lodge a complaint with a data protection authority</li>
             </ul>
             <p className="text-muted-foreground leading-relaxed mt-3">
-              To exercise any of these rights, email us at <a href="mailto:support@thankatech.com" className="text-primary underline">support@thankatech.com</a>.
+              To exercise any of these rights, email us at <a href="mailto:privacy@thankatech.com" className="text-primary underline">privacy@thankatech.com</a>.
             </p>
           </section>
 
@@ -125,7 +125,7 @@ export function Privacy() {
           <section>
             <h2 className="font-serif text-2xl font-semibold mb-3">12. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Questions about this Privacy Policy? Contact us at <a href="mailto:support@thankatech.com" className="text-primary underline">support@thankatech.com</a>.
+              Questions about this Privacy Policy? Contact us at <a href="mailto:privacy@thankatech.com" className="text-primary underline">privacy@thankatech.com</a>.
             </p>
           </section>
 

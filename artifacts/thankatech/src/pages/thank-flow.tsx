@@ -560,6 +560,22 @@ export function ThankFlow() {
                 </p>
               </div>
 
+              <div className="bg-secondary/5 border border-secondary/20 rounded-2xl px-4 py-3 text-sm text-muted-foreground flex flex-wrap justify-center gap-x-4 gap-y-1">
+                <span>
+                  <span className="font-medium text-foreground">{techName.split(" ")[0]} receives</span>{" "}
+                  ${(finalTip * 0.91).toFixed(2)}
+                </span>
+                <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+                <span>
+                  Platform fee ${(finalTip * 0.09).toFixed(2)}
+                </span>
+                <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+                <span>
+                  <span className="font-medium text-foreground">Total</span>{" "}
+                  ${finalTip.toFixed(2)}
+                </span>
+              </div>
+
               {paymentError && (
                 <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">
                   {paymentError}

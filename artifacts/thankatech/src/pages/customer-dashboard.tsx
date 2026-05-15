@@ -29,9 +29,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
-  appreciation_star: <Star className="w-5 h-5 text-yellow-500" />,
-  tip_discount_5:    <Tag className="w-5 h-5 text-green-600" />,
-  featured_profile:  <TrendingUp className="w-5 h-5 text-blue-500" />,
+  tip_discount_5:   <Tag className="w-5 h-5 text-green-600" />,
+  top_supporter:    <Star className="w-5 h-5 text-yellow-500" />,
+  featured_profile: <TrendingUp className="w-5 h-5 text-blue-500" />,
+  top_tech_badge:   <Star className="w-5 h-5 text-primary" />,
 };
 
 function JobStatusBadge({ status }: { status: string }) {
@@ -482,9 +483,8 @@ export function CustomerDashboard() {
               <CardContent className="p-5 space-y-3">
                 <p className="text-sm font-semibold text-foreground mb-3">How you earn points</p>
                 {[
-                  { label: "Send a thank you message", pts: "+15 pts" },
-                  { label: "Book a job", pts: "+20 pts" },
-                  { label: "Include a tip", pts: "+50 pts" },
+                  { label: "Send a thank you message", pts: "+5 pts" },
+                  { label: "Include a tip", pts: "+10 pts" },
                 ].map(item => (
                   <div key={item.label} className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{item.label}</span>
@@ -518,11 +518,11 @@ export function CustomerDashboard() {
         </div>
 
         {/* Rewards */}
-        {(rewards ?? []).length > 0 && (
+        {(rewards ?? []).filter(r => r.category === "customer").length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-foreground border-b pb-2">Redeem Rewards</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(rewards ?? []).map(reward => {
+              {(rewards ?? []).filter(r => r.category === "customer").map(reward => {
                 const canAfford = pointBalance >= (reward.cost ?? 0);
                 const icon = REWARD_ICONS[reward.id ?? ""] ?? <Gift className="w-5 h-5 text-primary" />;
                 return (

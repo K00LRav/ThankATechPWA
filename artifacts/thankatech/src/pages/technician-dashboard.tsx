@@ -12,9 +12,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
-  appreciation_star: <Star className="w-5 h-5 text-yellow-500" />,
-  tip_discount_5: <Tag className="w-5 h-5 text-green-600" />,
+  tip_discount_5:   <Tag className="w-5 h-5 text-green-600" />,
+  top_supporter:    <Star className="w-5 h-5 text-yellow-500" />,
   featured_profile: <TrendingUp className="w-5 h-5 text-blue-500" />,
+  top_tech_badge:   <Star className="w-5 h-5 text-primary" />,
 };
 
 export function TechnicianDashboard() {
@@ -81,7 +82,7 @@ export function TechnicianDashboard() {
 
   const redeemMutation = useRedeemPoints();
 
-  const availableRewards = rewards?.filter(r => r.category === "all" || r.category === "technician") ?? [];
+  const availableRewards = rewards?.filter(r => r.category === "technician") ?? [];
   const balance = points?.balance ?? 0;
 
   const createOnboarding = useCreateStripeConnectOnboarding();

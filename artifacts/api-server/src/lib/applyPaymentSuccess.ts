@@ -159,7 +159,7 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
       eq(thankMessagesTable.id, thankMessageId),
       ne(thankMessagesTable.paymentStatus, 'succeeded'),
     ))
-    .returning({ id: thankMessagesTable.id, tipAmount: thankMessagesTable.tipAmount, customerName: thankMessagesTable.customerName });
+    .returning({ id: thankMessagesTable.id, tipAmount: thankMessagesTable.tipAmount, customerName: thankMessagesTable.customerName, customerId: thankMessagesTable.customerId });
 
   if (updated.length === 0) {
     logger.info({ thankMessageId }, 'applyPaymentSuccess: already processed, skipping side effects');
@@ -169,6 +169,7 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
   // Use DB-stored tipAmount as the authoritative value for earnings — not caller/metadata values
   const tipAmount = parseFloat(updated[0].tipAmount ?? '0');
   const customerName = updated[0].customerName ?? 'A customer';
+  const customerProfileId = updated[0].customerId ?? null;
 
   // Credit technician earnings and award tip points
   if (tipAmount > 0) {
@@ -189,7 +190,11 @@ export async function applyPaymentSuccess(params: PaymentSuccessParams): Promise
       })
       .where(eq(techniciansTable.id, technicianId));
 
-    await awardPoints(technicianId, 50, 'tip_received', jobId, 'Received a tip');
+    await awardPoints(technicianId, 100, 'tip_received', jobId, 'Received a tip');
+    // Small customer reward for including a tip
+    if (customerProfileId) {
+      await awardPoints(customerProfileId, 10, 'tip_sent', jobId, 'Included a tip');
+    }
 
     // Fire push notification to the technician asynchronously — don't block the main flow.
     sendTipPaymentNotification(technicianId, customerName, tipAmount)

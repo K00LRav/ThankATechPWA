@@ -15,17 +15,31 @@ export interface Reward {
 
 export const REWARDS_CATALOG: Reward[] = [
   {
-    id: "appreciation_star",
-    name: "Appreciation Star Badge",
-    description: "A shiny star badge displayed on your profile to show you're an active community member.",
-    cost: 100,
-    category: "all",
+    id: "tip_discount_5",
+    name: "5% Tip Discount Voucher",
+    description: "Get 5% off your next tip. The discount code will be emailed to you automatically.",
+    cost: 150,
+    category: "customer",
+  },
+  {
+    id: "top_supporter",
+    name: "Top Supporter Badge",
+    description: "A badge displayed on your thank you messages showing techs you're a verified generous client.",
+    cost: 300,
+    category: "customer",
   },
   {
     id: "featured_profile",
     name: "Featured Profile Boost",
     description: "Get featured at the top of the Browse page for 7 days, increasing your visibility to customers.",
     cost: 500,
+    category: "technician",
+  },
+  {
+    id: "top_tech_badge",
+    name: "Top Tech Badge",
+    description: "A verified Top Tech badge on your profile, earned through your points — shows clients you're trusted and active.",
+    cost: 250,
     category: "technician",
   },
 ];

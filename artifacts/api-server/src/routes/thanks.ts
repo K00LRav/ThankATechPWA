@@ -138,9 +138,10 @@ router.post("/thanks", async (req, res) => {
       })
       .where(eq(techniciansTable.id, authorizedTechnicianId));
 
-    await awardPoints(authorizedTechnicianId, 80, "thank_received", job.id, "Received a thank you");
-    await awardPoints(authorizedTechnicianId, 20, "job_completed", job.id, "Completed a job");
-    // tip_received points (50) are awarded only after payment is confirmed (webhook: payment_intent.succeeded)
+    await awardPoints(authorizedTechnicianId, 100, "thank_received", job.id, "Received a thank you");
+    await awardPoints(authorizedTechnicianId, 50, "job_completed", job.id, "Completed a job");
+    // tip_received points (100) are awarded only after payment is confirmed (webhook: payment_intent.succeeded)
+    await awardPoints(profileId, 5, "thank_sent", job.id, "Sent a thank you");
 
     // Derive customer display name from authenticated profile for notification integrity.
     const [customerProfile] = await db

@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./lib/stripeClient";
 import type Stripe from "stripe";
+import { db, usersTable } from "@workspace/db";
 
 const rawPort = process.env["PORT"];
 
@@ -88,6 +89,17 @@ async function initStripe() {
   }
 }
 
+async function grantBootstrapAdmin() {
+  try {
+    const { eq } = await import("drizzle-orm");
+    await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.email, "k00lrav@gmail.com"));
+    logger.info("Bootstrap admin grant applied for k00lrav@gmail.com");
+  } catch (err) {
+    logger.warn({ err }, "Bootstrap admin grant skipped");
+  }
+}
+
+await grantBootstrapAdmin();
 await initStripe();
 
 app.listen(port, (err) => {

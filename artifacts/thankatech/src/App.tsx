@@ -60,6 +60,7 @@ function Router() {
           <Route path="/about" component={About} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />
+          <Route path="/admin" component={Admin} />
           <Route path="/login" component={Login} />
           <Route path="/onboard">
             <ProtectedRoute>

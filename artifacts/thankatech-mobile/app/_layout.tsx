@@ -54,6 +54,7 @@ function RootLayoutNav() {
         name="onboard"
         options={{ headerShown: false, presentation: "modal" }}
       />
+      <Stack.Screen name="retry-tip" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -57,6 +57,9 @@
   },
   "dependencies": {
     "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/stripe-js": "^9.4.0",
+    "@stripe/stripe-react-native": "^0.65.1",
     "expo-auth-session": "~7.0.11",
     "expo-crypto": "~15.0.9",
     "expo-notifications": "^0.32.17",

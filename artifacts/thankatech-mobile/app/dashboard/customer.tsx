@@ -118,37 +118,32 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function PaymentFailedBadge() {
+function PaymentFailedBadge({ thankMessageId }: { thankMessageId: number }) {
   const colors = useColors();
+  const router = useRouter();
   return (
     <TouchableOpacity
-      onPress={() =>
-        Alert.alert(
-          "Payment Failed",
-          "The tip payment for this job didn't go through. Please retry the tip from the job details screen.",
-          [{ text: "OK" }]
-        )
-      }
+      onPress={() => (router.push as (href: string) => void)(`/retry-tip/${thankMessageId}`)}
       style={[styles.paymentFailedBadge, { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "50" }]}
       activeOpacity={0.7}
       testID="payment-failed-badge"
     >
       <Ionicons name="alert-circle" size={13} color={colors.destructive} />
       <Text style={[styles.paymentFailedText, { color: colors.destructive, fontFamily: "Inter_600SemiBold" }]}>
-        Payment failed
+        Payment failed — tap to retry
       </Text>
     </TouchableOpacity>
   );
 }
 
-function JobCard({ item, canThank, paymentFailed, onCancel, cancelling }: { item: {
+function JobCard({ item, canThank, paymentFailed, failedThankMessageId, onCancel, cancelling }: { item: {
   id: number;
   title: string;
   status: string;
   technicianName?: string;
   createdAt: string;
   completedAt?: string | null;
-}; canThank: boolean; paymentFailed?: boolean; onCancel?: (id: number) => void; cancelling?: boolean }) {
+}; canThank: boolean; paymentFailed?: boolean; failedThankMessageId?: number; onCancel?: (id: number) => void; cancelling?: boolean }) {
   const colors = useColors();
   const router = useRouter();
   const date = new Date(item.createdAt).toLocaleDateString("en-US", {
@@ -181,9 +176,9 @@ function JobCard({ item, canThank, paymentFailed, onCancel, cancelling }: { item
           {item.technicianName ?? "Technician"} · {date}
         </Text>
       </View>
-      {paymentFailed && (
+      {paymentFailed && failedThankMessageId !== undefined && (
         <View onStartShouldSetResponder={() => true}>
-          <PaymentFailedBadge />
+          <PaymentFailedBadge thankMessageId={failedThankMessageId} />
         </View>
       )}
       {canThank && (
@@ -284,8 +279,10 @@ export default function CustomerDashboard() {
   );
   const { mutate: cancelJob } = useUpdateJob();
 
-  const failedPaymentJobIds = new Set(
-    (thankMessages ?? []).filter(t => t.paymentStatus === "failed").map(t => t.jobId)
+  const failedPaymentByJobId = new Map<number, number>(
+    (thankMessages ?? [])
+      .filter(t => t.paymentStatus === "failed" && t.jobId != null)
+      .map(t => [t.jobId as number, t.id])
   );
 
   const handleCancel = (jobId: number) => {
@@ -397,7 +394,8 @@ export default function CustomerDashboard() {
             <JobCard
               item={item}
               canThank={item.status === "completed"}
-              paymentFailed={failedPaymentJobIds.has(item.id)}
+              paymentFailed={failedPaymentByJobId.has(item.id)}
+              failedThankMessageId={failedPaymentByJobId.get(item.id)}
               onCancel={handleCancel}
               cancelling={cancellingJobId === item.id}
             />

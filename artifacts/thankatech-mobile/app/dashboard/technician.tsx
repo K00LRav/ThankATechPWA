@@ -36,6 +36,7 @@ import {
   useUpdateJob,
   getGetPointsQueryKey,
   getGetPointTransactionsQueryKey,
+  getGetStripeConnectDashboardLinkQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
@@ -278,7 +279,10 @@ export default function TechnicianDashboard() {
   const { data: earnings, isLoading: earningsLoading, refetch: refetchEarnings } = useGetStripeEarnings();
   const { data: stripeStatus } = useGetStripeConnectStatus();
   const { data: dashboardLink, isLoading: dashboardLinkLoading } = useGetStripeConnectDashboardLink({
-    query: { enabled: stripeStatus?.onboardingComplete === true },
+    query: {
+      enabled: stripeStatus?.onboardingComplete === true,
+      queryKey: getGetStripeConnectDashboardLinkQueryKey(),
+    },
   });
 
   const updateJob = useUpdateJob();

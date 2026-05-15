@@ -98,7 +98,7 @@ export function Terms() {
           <section>
             <h2 className="font-serif text-2xl font-semibold mb-3">12. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
-              For questions about these Terms, contact us at <a href="mailto:hello@thankatech.com" className="text-primary underline">hello@thankatech.com</a>.
+              For questions about these Terms, contact us at <a href="mailto:support@thankatech.com" className="text-primary underline">support@thankatech.com</a>.
             </p>
           </section>
 

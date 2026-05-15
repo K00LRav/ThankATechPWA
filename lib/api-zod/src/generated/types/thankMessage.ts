@@ -11,6 +11,8 @@ export interface ThankMessage {
   jobId: number;
   customerId: number;
   customerName?: string;
+  /** Badge IDs earned by the customer who sent this thank you (e.g. top_supporter) */
+  customerBadges?: string[];
   technicianId: number;
   technicianName?: string;
   /** @nullable */

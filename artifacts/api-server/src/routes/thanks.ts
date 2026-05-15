@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable, pushTokensTable, usersTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { thankMessagesTable, techniciansTable, pointsTable, pointTransactionsTable, profilesTable, jobsTable, pushTokensTable, usersTable, profileBadgesTable } from "@workspace/db";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { sendEmail, emailThankReceived } from "../lib/mailer";
 
 const router = Router();
@@ -49,7 +49,7 @@ router.get("/thanks", async (req, res) => {
       : db.select().from(thankMessagesTable).orderBy(sql`${thankMessagesTable.createdAt} DESC`);
 
     const thanks = await query;
-    return res.json(thanks.map(formatThank));
+    return res.json(await enrichWithBadges(thanks));
   } catch (err) {
     req.log.error({ err }, "Error listing thank messages");
     return res.status(500).json({ error: "Internal server error" });
@@ -181,7 +181,7 @@ router.get("/thanks/recent", async (req, res) => {
       .from(thankMessagesTable)
       .orderBy(sql`${thankMessagesTable.createdAt} DESC`)
       .limit(20);
-    return res.json(thanks.map(formatThank));
+    return res.json(await enrichWithBadges(thanks));
   } catch (err) {
     req.log.error({ err }, "Error getting recent thanks");
     return res.status(500).json({ error: "Internal server error" });
@@ -316,12 +316,13 @@ async function awardPoints(userId: number, amount: number, type: string, jobId: 
   });
 }
 
-function formatThank(t: typeof thankMessagesTable.$inferSelect) {
+function formatThank(t: typeof thankMessagesTable.$inferSelect, customerBadges: string[] = []) {
   return {
     id: t.id,
     jobId: t.jobId,
     customerId: t.customerId,
     customerName: t.customerName,
+    customerBadges,
     technicianId: t.technicianId,
     technicianName: t.technicianName,
     technicianAvatar: t.technicianAvatar,
@@ -332,6 +333,19 @@ function formatThank(t: typeof thankMessagesTable.$inferSelect) {
     photoUrl: t.photoUrl,
     createdAt: t.createdAt?.toISOString(),
   };
+}
+
+async function enrichWithBadges(rows: (typeof thankMessagesTable.$inferSelect)[]) {
+  const customerIds = [...new Set(rows.map(r => r.customerId).filter((id): id is number => id != null))];
+  if (customerIds.length === 0) return rows.map(r => formatThank(r));
+  const badgeRows = await db.select().from(profileBadgesTable).where(inArray(profileBadgesTable.profileId, customerIds));
+  const badgeMap = new Map<number, string[]>();
+  badgeRows.forEach(b => {
+    const list = badgeMap.get(b.profileId) ?? [];
+    list.push(b.badgeId);
+    badgeMap.set(b.profileId, list);
+  });
+  return rows.map(r => formatThank(r, badgeMap.get(r.customerId ?? 0) ?? []));
 }
 
 export default router;

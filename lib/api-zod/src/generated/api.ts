@@ -38,6 +38,16 @@ export const ListTechniciansResponseItem = zod.object({
   totalThanks: zod.number(),
   totalEarned: zod.number(),
   distanceMiles: zod.number().nullish(),
+  featuredUntil: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp until which this technician is featured at the top of Browse",
+    ),
+  badges: zod
+    .array(zod.string())
+    .optional()
+    .describe("Badge IDs earned by this technician (e.g. top_tech_badge)"),
   createdAt: zod.string().optional(),
 });
 export const ListTechniciansResponse = zod.array(ListTechniciansResponseItem);
@@ -76,6 +86,16 @@ export const GetTechnicianResponse = zod.object({
   totalThanks: zod.number(),
   totalEarned: zod.number(),
   distanceMiles: zod.number().nullish(),
+  featuredUntil: zod
+    .string()
+    .nullish()
+    .describe(
+      "ISO timestamp until which this technician is featured at the top of Browse",
+    ),
+  badges: zod
+    .array(zod.string())
+    .optional()
+    .describe("Badge IDs earned by this technician (e.g. top_tech_badge)"),
   createdAt: zod.string().optional(),
 });
 
@@ -91,6 +111,12 @@ export const GetTechnicianWallOfThanksResponseItem = zod.object({
   jobId: zod.number(),
   customerId: zod.number(),
   customerName: zod.string().optional(),
+  customerBadges: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Badge IDs earned by the customer who sent this thank you (e.g. top_supporter)",
+    ),
   technicianId: zod.number(),
   technicianName: zod.string().optional(),
   technicianAvatar: zod.string().nullish(),
@@ -253,6 +279,12 @@ export const ListThankMessagesResponseItem = zod.object({
   jobId: zod.number(),
   customerId: zod.number(),
   customerName: zod.string().optional(),
+  customerBadges: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Badge IDs earned by the customer who sent this thank you (e.g. top_supporter)",
+    ),
   technicianId: zod.number(),
   technicianName: zod.string().optional(),
   technicianAvatar: zod.string().nullish(),
@@ -288,6 +320,12 @@ export const GetRecentThanksResponseItem = zod.object({
   jobId: zod.number(),
   customerId: zod.number(),
   customerName: zod.string().optional(),
+  customerBadges: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Badge IDs earned by the customer who sent this thank you (e.g. top_supporter)",
+    ),
   technicianId: zod.number(),
   technicianName: zod.string().optional(),
   technicianAvatar: zod.string().nullish(),
@@ -505,6 +543,12 @@ export const GetThankMessageResponse = zod.object({
   jobId: zod.number(),
   customerId: zod.number(),
   customerName: zod.string().optional(),
+  customerBadges: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Badge IDs earned by the customer who sent this thank you (e.g. top_supporter)",
+    ),
   technicianId: zod.number(),
   technicianName: zod.string().optional(),
   technicianAvatar: zod.string().nullish(),

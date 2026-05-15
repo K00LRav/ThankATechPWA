@@ -194,7 +194,14 @@ export function TechnicianProfile() {
                 <CardContent className="p-6 space-y-4">
                   <p className="text-lg italic text-foreground leading-relaxed">"{thank.message}"</p>
                   <div className="flex items-center justify-between pt-4 border-t">
-                    <p className="text-sm font-medium text-muted-foreground">— {thank.customerName}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-muted-foreground">— {thank.customerName}</p>
+                      {(thank.customerBadges ?? []).includes("top_supporter") && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          ⭐ Top Supporter
+                        </span>
+                      )}
+                    </div>
                     {thank.tipAmount > 0 && (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                         <DollarSign size={14} />

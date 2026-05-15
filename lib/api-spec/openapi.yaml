@@ -905,6 +905,14 @@ components:
           type: number
         distanceMiles:
           type: ["number", "null"]
+        featuredUntil:
+          type: ["string", "null"]
+          description: ISO timestamp until which this technician is featured at the top of Browse
+        badges:
+          type: array
+          items:
+            type: string
+          description: Badge IDs earned by this technician (e.g. top_tech_badge)
         createdAt:
           type: string
 
@@ -1017,6 +1025,11 @@ components:
           type: integer
         customerName:
           type: string
+        customerBadges:
+          type: array
+          items:
+            type: string
+          description: Badge IDs earned by the customer who sent this thank you (e.g. top_supporter)
         technicianId:
           type: integer
         technicianName:

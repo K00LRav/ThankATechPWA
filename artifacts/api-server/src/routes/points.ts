@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { pointsTable, pointTransactionsTable, profilesTable } from "@workspace/db";
+import { pointsTable, pointTransactionsTable, profilesTable, profileBadgesTable, discountVouchersTable, techniciansTable, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
+import { sendEmail, emailVoucherRedeemed } from "../lib/mailer";
 
 const router = Router();
 
@@ -44,12 +45,66 @@ export const REWARDS_CATALOG: Reward[] = [
   },
 ];
 
-async function getProfile(userId: string): Promise<{ id: number; userType: string } | null> {
+async function getProfile(userId: string): Promise<{ id: number; userType: string; fullName: string } | null> {
   const [profile] = await db
-    .select({ id: profilesTable.id, userType: profilesTable.userType })
+    .select({ id: profilesTable.id, userType: profilesTable.userType, fullName: profilesTable.fullName })
     .from(profilesTable)
     .where(eq(profilesTable.userId, userId));
   return profile ?? null;
+}
+
+function generateVoucherCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "THANKS-";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function fulfillReward(
+  reward: Reward,
+  profileId: number,
+  replitUserId: string,
+  profile: { fullName: string; userType: string }
+): Promise<void> {
+  switch (reward.id) {
+    case "tip_discount_5": {
+      const code = generateVoucherCode();
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + 3);
+      await db.insert(discountVouchersTable).values({
+        profileId,
+        code,
+        discountPercent: 5,
+        expiresAt,
+      });
+      const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, replitUserId));
+      if (user?.email) {
+        const { subject, html } = emailVoucherRedeemed({
+          customerName: profile.fullName,
+          code,
+          discountPercent: 5,
+          expiresAt: expiresAt.toISOString(),
+        });
+        await sendEmail(user.email, subject, html).catch(() => {});
+      }
+      break;
+    }
+    case "top_supporter":
+      await db.insert(profileBadgesTable).values({ profileId, badgeId: "top_supporter" }).onConflictDoNothing();
+      break;
+    case "featured_profile": {
+      const [tech] = await db.select({ id: techniciansTable.id }).from(techniciansTable).where(eq(techniciansTable.userId, replitUserId));
+      if (tech) {
+        const featuredUntil = new Date();
+        featuredUntil.setDate(featuredUntil.getDate() + 7);
+        await db.update(techniciansTable).set({ featuredUntil }).where(eq(techniciansTable.id, tech.id));
+      }
+      break;
+    }
+    case "top_tech_badge":
+      await db.insert(profileBadgesTable).values({ profileId, badgeId: "top_tech_badge" }).onConflictDoNothing();
+      break;
+  }
 }
 
 router.get("/points/rewards", (_req, res) => {
@@ -205,6 +260,11 @@ router.post("/points/:userId/redeem", async (req, res) => {
         error: `Insufficient points. You need ${reward.cost} pts but only have ${result.balance} pts.`,
       });
     }
+
+    // Fulfill the reward (fire-and-forget so a delivery failure doesn't block the response)
+    fulfillReward(reward, requestedId, req.user.id, profile).catch(err =>
+      req.log.warn({ err, rewardId: reward.id, profileId: requestedId }, "Reward fulfillment failed (points already deducted)")
+    );
 
     return res.json({
       success: true,

@@ -19,6 +19,7 @@ export const techniciansTable = pgTable("technicians", {
   stripeOnboardingComplete: boolean("stripe_onboarding_complete").notNull().default(false),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
+  featuredUntil: timestamp("featured_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -22,5 +22,12 @@ export interface Technician {
   totalEarned: number;
   /** @nullable */
   distanceMiles?: number | null;
+  /**
+   * ISO timestamp until which this technician is featured at the top of Browse
+   * @nullable
+   */
+  featuredUntil?: string | null;
+  /** Badge IDs earned by this technician (e.g. top_tech_badge) */
+  badges?: string[];
   createdAt?: string;
 }

@@ -118,7 +118,19 @@ export function Browse() {
                         iconSize={26}
                       />
                       <div className="flex-1 space-y-1">
-                        <h3 className="font-serif font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.fullName}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-serif font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.fullName}</h3>
+                          {tech.featuredUntil && new Date(tech.featuredUntil) > new Date() && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary text-white">
+                              ★ Featured
+                            </span>
+                          )}
+                          {tech.badges?.includes("top_tech_badge") && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-secondary/10 text-secondary border border-secondary/20">
+                              ✓ Top Tech
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm font-medium text-secondary flex items-center gap-1">
                           <Wrench size={14} />
                           {tech.specialty}

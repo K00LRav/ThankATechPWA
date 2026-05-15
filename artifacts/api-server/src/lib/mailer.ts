@@ -332,6 +332,31 @@ export function emailWelcome(opts: {
   return { subject, html };
 }
 
+// ─── Template: Voucher redeemed (→ customer) ─────────────────────────────────
+
+export function emailVoucherRedeemed(opts: {
+  customerName: string;
+  code: string;
+  discountPercent: number;
+  expiresAt: string;
+}): { subject: string; html: string } {
+  const subject = `Your ${opts.discountPercent}% tip discount code is ready!`;
+  const html = layout(`
+    <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#2d2926;">Your discount voucher is here! 🎉</h1>
+    <p style="margin:0 0 24px;color:#6b5f53;font-size:15px;">Hi ${opts.customerName}, you've redeemed your ThankYou Points for a tip discount. Use the code below on your next thank you.</p>
+
+    <div style="background:#fff8f5;border:2px dashed #FF6B35;border-radius:12px;padding:28px;text-align:center;margin:0 0 24px;">
+      <p style="margin:0 0 8px;font-size:13px;color:#9c8f7e;text-transform:uppercase;letter-spacing:1px;">Your discount code</p>
+      <p style="margin:0;font-size:32px;font-weight:900;color:#FF6B35;letter-spacing:4px;font-family:'Courier New',monospace;">${opts.code}</p>
+      <p style="margin:12px 0 0;font-size:14px;color:#6b5f53;">${opts.discountPercent}% off your next tip · expires ${new Date(opts.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+    </div>
+
+    <p style="margin:0 0 16px;color:#6b5f53;font-size:14px;line-height:1.6;">Enter this code in the tip step of your next thank you flow to get ${opts.discountPercent}% off the tip amount. One-time use only.</p>
+    ${btn("Send a thank you", "https://www.thankatech.com/browse")}
+  `);
+  return { subject, html };
+}
+
 // ─── Template: Tip payment confirmed (→ technician) ──────────────────────────
 
 export function emailTipConfirmed(opts: {

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { techniciansTable, thankMessagesTable, jobsTable, profilesTable } from "@workspace/db";
-import { eq, ilike, or, sql, and } from "drizzle-orm";
+import { techniciansTable, thankMessagesTable, jobsTable, profilesTable, profileBadgesTable } from "@workspace/db";
+import { eq, ilike, or, sql, and, inArray } from "drizzle-orm";
 import { geocodeAddress, haversineDistanceMiles } from "../lib/geocoder";
 
 const router = Router();
@@ -41,15 +41,44 @@ router.get("/technicians", async (req, res) => {
       rows = await db.select().from(techniciansTable);
     }
 
-    let formatted = rows.map(t => formatTechnician(t, userLat, userLng));
+    // Batch-load badges for all technicians via profile lookup
+    const badgesByUserId = new Map<string, string[]>();
+    const userIds = rows.map(r => r.userId).filter(Boolean) as string[];
+    if (userIds.length > 0) {
+      const profiles = await db.select({ id: profilesTable.id, userId: profilesTable.userId })
+        .from(profilesTable)
+        .where(inArray(profilesTable.userId, userIds));
+      const profileIdToUserId = new Map(profiles.map(p => [p.id, p.userId!]));
+      const profileIds = profiles.map(p => p.id);
+      if (profileIds.length > 0) {
+        const badgeRows = await db.select().from(profileBadgesTable).where(inArray(profileBadgesTable.profileId, profileIds));
+        badgeRows.forEach(b => {
+          const uid = profileIdToUserId.get(b.profileId);
+          if (uid) {
+            const list = badgesByUserId.get(uid) ?? [];
+            list.push(b.badgeId);
+            badgesByUserId.set(uid, list);
+          }
+        });
+      }
+    }
 
-    if (hasLocation) {
-      formatted = formatted.sort((a, b) => {
+    let formatted = rows.map(t => formatTechnician(t, userLat, userLng, badgesByUserId.get(t.userId ?? '') ?? []));
+
+    // Sort: featured techs first, then by distance
+    const now = new Date();
+    formatted = formatted.sort((a, b) => {
+      const aFeatured = a.featuredUntil && new Date(a.featuredUntil) > now;
+      const bFeatured = b.featuredUntil && new Date(b.featuredUntil) > now;
+      if (aFeatured && !bFeatured) return -1;
+      if (!aFeatured && bFeatured) return 1;
+      if (hasLocation) {
         const da = a.distanceMiles ?? Infinity;
         const db2 = b.distanceMiles ?? Infinity;
         return da - db2;
-      });
-    }
+      }
+      return 0;
+    });
 
     return res.json(formatted);
   } catch (err) {
@@ -217,7 +246,8 @@ router.get("/technicians/:id/stats", async (req, res) => {
 function formatTechnician(
   t: typeof techniciansTable.$inferSelect,
   userLat: number | null,
-  userLng: number | null
+  userLng: number | null,
+  badges: string[] = []
 ) {
   const distanceMiles =
     userLat !== null && userLng !== null && t.latitude !== null && t.longitude !== null
@@ -237,6 +267,8 @@ function formatTechnician(
     totalThanks: t.totalThanks,
     totalEarned: parseFloat(t.totalEarned ?? "0"),
     distanceMiles,
+    featuredUntil: t.featuredUntil?.toISOString() ?? null,
+    badges,
     createdAt: t.createdAt?.toISOString(),
   };
 }

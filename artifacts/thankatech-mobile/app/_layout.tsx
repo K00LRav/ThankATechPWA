@@ -10,9 +10,11 @@ import {
   PlayfairDisplay_700Bold_Italic,
 } from "@expo-google-fonts/playfair-display";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -40,6 +42,34 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
+  const router = useRouter();
+
+  // Global handler: navigate to retry-tip on notification tap, including cold-start launches.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    // Handle notification tap when app is already running.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const thankMessageId = data?.thankMessageId;
+      if (typeof thankMessageId === "number") {
+        (router.push as (href: string) => void)(`/retry-tip/${thankMessageId}`);
+      }
+    });
+
+    // Handle notification tap that launched the app from a terminated/background state.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const thankMessageId = data?.thankMessageId;
+      if (typeof thankMessageId === "number") {
+        (router.push as (href: string) => void)(`/retry-tip/${thankMessageId}`);
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

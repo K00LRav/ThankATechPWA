@@ -357,6 +357,35 @@ export function emailVoucherRedeemed(opts: {
   return { subject, html };
 }
 
+// ─── Template: Tip payment failed (→ customer) ───────────────────────────────
+
+export function emailTipPaymentFailed(opts: {
+  customerName: string;
+  technicianName: string;
+  tipAmount: number;
+  thankMessageId: number;
+}): { subject: string; html: string } {
+  const formattedAmount = opts.tipAmount.toFixed(2).replace(/\.00$/, '');
+  const subject = `Your $${formattedAmount} tip to ${opts.technicianName} didn't go through`;
+  const retryUrl = `https://www.thankatech.com/retry-tip/${opts.thankMessageId}`;
+  const html = layout(`
+    <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#2d2926;">Payment failed ⚠️</h1>
+    <p style="margin:0 0 24px;color:#6b5f53;font-size:15px;">Hi ${opts.customerName}, unfortunately your <strong>$${formattedAmount} tip</strong> to <strong>${opts.technicianName}</strong> could not be processed.</p>
+
+    <div style="background:#fff8f5;border-radius:10px;border:1px solid #fde8dc;padding:24px;margin-bottom:24px;">
+      <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#2d2926;">What happened?</p>
+      <p style="margin:0;font-size:14px;color:#6b5f53;line-height:1.6;">This can happen due to insufficient funds, an expired card, or a temporary issue with your bank. Retrying with the same or a different card usually resolves it.</p>
+    </div>
+
+    <p style="margin:0 0 24px;color:#6b5f53;font-size:14px;line-height:1.6;">${opts.technicianName} still received your thank you message — the tip just needs a second try.</p>
+
+    ${btn("Retry my tip", retryUrl)}
+
+    <p style="margin:24px 0 0;color:#9c8f7e;font-size:13px;line-height:1.6;">If you continue to have trouble, please check your card details or try a different payment method.</p>
+  `);
+  return { subject, html };
+}
+
 // ─── Template: Tip payment confirmed (→ technician) ──────────────────────────
 
 export function emailTipConfirmed(opts: {

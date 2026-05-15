@@ -1,9 +1,26 @@
 import { getStripeSync } from './stripeClient';
 import { db } from '@workspace/db';
-import { thankMessagesTable, techniciansTable, pushTokensTable } from '@workspace/db';
+import { thankMessagesTable, techniciansTable, pushTokensTable, profilesTable, usersTable } from '@workspace/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from './logger';
 import { applyPaymentSuccess } from './applyPaymentSuccess';
+import { sendEmail, emailTipPaymentFailed } from './mailer';
+
+async function getCustomerEmail(customerId: number): Promise<{ email: string | null; fullName: string }> {
+  const [profile] = await db
+    .select({ userId: profilesTable.userId, fullName: profilesTable.fullName })
+    .from(profilesTable)
+    .where(eq(profilesTable.id, customerId));
+
+  if (!profile?.userId) return { email: null, fullName: 'there' };
+
+  const [user] = await db
+    .select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, profile.userId));
+
+  return { email: user?.email ?? null, fullName: profile.fullName };
+}
 
 async function notifyCustomerPaymentFailed(
   thankMessageId: number,
@@ -11,55 +28,71 @@ async function notifyCustomerPaymentFailed(
   tipAmount: number,
   technicianName: string,
 ): Promise<void> {
-  const tokens = await db
-    .select({ token: pushTokensTable.token })
-    .from(pushTokensTable)
-    .where(eq(pushTokensTable.profileId, customerId));
-
-  if (tokens.length === 0) return;
+  const [tokens, { email: customerEmail, fullName: customerName }] = await Promise.all([
+    db
+      .select({ token: pushTokensTable.token })
+      .from(pushTokensTable)
+      .where(eq(pushTokensTable.profileId, customerId)),
+    getCustomerEmail(customerId),
+  ]);
 
   const formattedAmount = tipAmount.toFixed(2).replace(/\.00$/, '');
-  const body = `Your $${formattedAmount} tip to ${technicianName} didn't go through — tap to retry.`;
 
-  const messages = tokens.map(({ token }) => ({
-    to: token,
-    sound: 'default' as const,
-    title: 'Tip payment failed',
-    body,
-    data: { thankMessageId },
-  }));
+  // Send push notification if the customer has registered push tokens
+  if (tokens.length > 0) {
+    const body = `Your $${formattedAmount} tip to ${technicianName} didn't go through — tap to retry.`;
 
-  const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Accept-Encoding': 'gzip, deflate',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(messages),
-  });
+    const messages = tokens.map(({ token }) => ({
+      to: token,
+      sound: 'default' as const,
+      title: 'Tip payment failed',
+      body,
+      data: { thankMessageId, url: `/retry-tip/${thankMessageId}` },
+    }));
 
-  if (pushRes.ok) {
-    const json = (await pushRes.json()) as {
-      data?: Array<{ status: string; details?: { error?: string } }>;
-    };
-    const staleTokens: string[] = [];
-    (json.data ?? []).forEach((ticket, i) => {
-      if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-        const staleToken = tokens[i]?.token;
-        if (staleToken) staleTokens.push(staleToken);
-      }
+    const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
     });
-    if (staleTokens.length > 0) {
-      await db
-        .delete(pushTokensTable)
-        .where(
-          and(
-            eq(pushTokensTable.profileId, customerId),
-            sql`${pushTokensTable.token} = ANY(${staleTokens})`,
-          ),
-        );
+
+    if (pushRes.ok) {
+      const json = (await pushRes.json()) as {
+        data?: Array<{ status: string; details?: { error?: string } }>;
+      };
+      const staleTokens: string[] = [];
+      (json.data ?? []).forEach((ticket, i) => {
+        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+          const staleToken = tokens[i]?.token;
+          if (staleToken) staleTokens.push(staleToken);
+        }
+      });
+      if (staleTokens.length > 0) {
+        await db
+          .delete(pushTokensTable)
+          .where(
+            and(
+              eq(pushTokensTable.profileId, customerId),
+              sql`${pushTokensTable.token} = ANY(${staleTokens})`,
+            ),
+          );
+      }
     }
+  }
+
+  // Send email notification if the customer has an email address on file
+  if (customerEmail) {
+    const tpl = emailTipPaymentFailed({
+      customerName,
+      technicianName,
+      tipAmount,
+      thankMessageId,
+    });
+    await sendEmail(customerEmail, tpl.subject, tpl.html);
   }
 }
 
@@ -246,7 +279,7 @@ export class WebhookHandlers {
           customerId,
           parseFloat(tipAmount ?? '0'),
           technicianName || 'the technician',
-        ).catch((err) => logger.warn({ err, thankMessageId }, 'Failed to send payment failed push notification'));
+        ).catch((err) => logger.warn({ err, thankMessageId }, 'Failed to send payment failed push/email notification'));
         break;
       }
 

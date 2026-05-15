@@ -262,6 +262,19 @@ export default function CustomerDashboard() {
     })();
   }, [profile?.profileId]);
 
+  // Navigate to the retry-tip screen when the customer taps a payment-failed notification.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const thankMessageId = data?.thankMessageId;
+      if (typeof thankMessageId === "number") {
+        (router.push as (href: string) => void)(`/retry-tip/${thankMessageId}`);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const jobsParams = {
     ...(profile?.profileId ? { customerId: profile.profileId } : {}),
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),

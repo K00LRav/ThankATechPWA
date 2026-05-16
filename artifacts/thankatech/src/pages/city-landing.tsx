@@ -1,11 +1,11 @@
+import { useState, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { Helmet } from "react-helmet-async";
 import { useListTechnicians } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Heart, Wrench, ChevronRight } from "lucide-react";
+import { MapPin, Heart, Wrench, ChevronRight, Navigation, Loader2 } from "lucide-react";
 import { TechAvatar } from "@/components/TechAvatar";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   CITY_SLUGS,
   SPECIALTY_SLUGS,
@@ -19,64 +19,135 @@ import {
   SITE_NAME,
 } from "@/lib/seo";
 
-function TechGrid({ search, city }: { search?: string; city?: string }) {
+interface TechGridProps {
+  search?: string;
+  city?: string;
+}
+
+function TechGrid({ search, city }: TechGridProps) {
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   const { data: technicians, isLoading } = useListTechnicians({
     search: search || undefined,
+    lat: userLocation?.lat,
+    lng: userLocation?.lng,
   });
 
-  const filtered = city
+  const handleNearMe = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError("Your browser doesn't support location access.");
+      return;
+    }
+    setLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setLocationError("Couldn't get your location. Please allow location access and try again.");
+        setLocating(false);
+      }
+    );
+  }, []);
+
+  const handleClearLocation = useCallback(() => {
+    setUserLocation(null);
+    setLocationError(null);
+  }, []);
+
+  const filtered = city && !userLocation
     ? technicians?.filter((t) =>
         t.serviceArea.toLowerCase().includes(city.toLowerCase())
       )
     : technicians;
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-52 bg-card animate-pulse rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!filtered?.length) {
-    return (
-      <div className="text-center py-16 text-muted-foreground">
-        <p className="text-lg">No technicians found yet — check back soon as we add more.</p>
-        <Link href="/browse">
-          <Button variant="outline" className="mt-4 rounded-full">Browse all technicians</Button>
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {filtered.map((tech) => (
-        <Card key={tech.id} className="overflow-hidden hover:shadow-md transition-all group border-primary/5">
-          <CardContent className="p-0">
-            <div className="p-6 space-y-4">
-              <div className="flex items-start gap-4">
-                <TechAvatar avatarUrl={tech.avatarUrl} fullName={tech.fullName} specialty={tech.specialty} className="w-14 h-14" iconSize={22} />
-                <div className="flex-1 space-y-1">
-                  <h3 className="font-serif font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.fullName}</h3>
-                  <p className="text-sm font-medium text-secondary flex items-center gap-1"><Wrench size={13} />{tech.specialty}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-2">
+        {userLocation ? (
+          <Button
+            variant="outline"
+            className="h-10 rounded-full px-5 gap-2 border-primary text-primary hover:bg-primary/5"
+            onClick={handleClearLocation}
+          >
+            <Navigation size={15} className="fill-primary" />
+            Near me — active
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="h-10 rounded-full px-5 gap-2"
+            onClick={handleNearMe}
+            disabled={locating}
+          >
+            {locating ? <Loader2 size={15} className="animate-spin" /> : <Navigation size={15} />}
+            {locating ? "Finding your location…" : "Sort by nearest to me"}
+          </Button>
+        )}
+        {locationError && (
+          <p className="text-sm text-destructive text-center">{locationError}</p>
+        )}
+        {userLocation && (
+          <p className="text-sm text-muted-foreground">Sorted by distance from your location</p>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-52 bg-card animate-pulse rounded-xl" />
+          ))}
+        </div>
+      ) : !filtered?.length ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-lg">No technicians found yet — check back soon as we add more.</p>
+          <Link href="/browse">
+            <Button variant="outline" className="mt-4 rounded-full">Browse all technicians</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map((tech) => (
+            <Card key={tech.id} className="overflow-hidden hover:shadow-md transition-all group border-primary/5">
+              <CardContent className="p-0">
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <TechAvatar avatarUrl={tech.avatarUrl} fullName={tech.fullName} specialty={tech.specialty} className="w-14 h-14" iconSize={22} />
+                    <div className="flex-1 space-y-1">
+                      <h3 className="font-serif font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.fullName}</h3>
+                      <p className="text-sm font-medium text-secondary flex items-center gap-1"><Wrench size={13} />{tech.specialty}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 text-sm text-muted-foreground pt-3 border-t">
+                    <p className="flex items-center gap-2">
+                      <MapPin size={14} />
+                      <span>{tech.serviceArea}</span>
+                      {tech.distanceMiles !== null && tech.distanceMiles !== undefined && (
+                        <span className="ml-auto font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full text-xs">
+                          {tech.distanceMiles} mi
+                        </span>
+                      )}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Heart size={14} className="text-primary" />
+                      <span className="font-medium text-foreground">{tech.totalThanks}</span> Thanks received
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5 text-sm text-muted-foreground pt-3 border-t">
-                <p className="flex items-center gap-2"><MapPin size={14} />{tech.serviceArea}</p>
-                <p className="flex items-center gap-2"><Heart size={14} className="text-primary" /><span className="font-medium text-foreground">{tech.totalThanks}</span> Thanks received</p>
-              </div>
-            </div>
-            <div className="p-4 bg-muted/30 border-t">
-              <Button asChild className="w-full rounded-full bg-white dark:bg-black" variant="outline">
-                <Link href={`/technician/${tech.id}`}>View Profile</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <div className="p-4 bg-muted/30 border-t">
+                  <Button asChild className="w-full rounded-full bg-white dark:bg-black" variant="outline">
+                    <Link href={`/technician/${tech.id}`}>View Profile</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

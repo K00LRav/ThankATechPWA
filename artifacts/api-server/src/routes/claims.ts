@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { claimRequestsTable, techniciansTable } from "@workspace/db";
+import { claimRequestsTable, techniciansTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { adminMiddleware } from "../middlewares/adminMiddleware";
 
 const router = Router();
 
 router.post("/technicians/:id/claim", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "You must be signed in to claim a profile" });
+    return;
+  }
+
   const techId = parseInt(req.params.id, 10);
   if (isNaN(techId)) { res.status(400).json({ error: "Invalid technician id" }); return; }
 
@@ -31,13 +36,14 @@ router.post("/technicians/:id/claim", async (req, res) => {
     claimantName: claimantName.trim(),
     claimantEmail: claimantEmail.trim(),
     claimantPhone: claimantPhone.trim(),
+    claimantUserId: req.user.id,
   });
 
   await db.update(techniciansTable)
     .set({ claimRequestPending: true })
     .where(eq(techniciansTable.id, techId));
 
-  req.log.info({ techId, email: claimantEmail }, "Claim request submitted");
+  req.log.info({ techId, email: claimantEmail, userId: req.user.id }, "Claim request submitted");
   res.status(201).json({ ok: true });
 });
 
@@ -75,9 +81,36 @@ router.post("/admin/claim-requests/:id/approve", async (req, res) => {
     .set({ status: "approved", reviewedAt: new Date() })
     .where(eq(claimRequestsTable.id, claimId));
 
+  // Link the technician record to the claimant's user account
   await db.update(techniciansTable)
-    .set({ claimed: true, claimRequestPending: false })
+    .set({
+      claimed: true,
+      claimRequestPending: false,
+      userId: claim.claimantUserId ?? null,
+      claimedByUserId: claim.claimantUserId ?? null,
+    })
     .where(eq(techniciansTable.id, claim.technicianId));
+
+  // Create or update their profile so they can access the technician dashboard immediately
+  if (claim.claimantUserId) {
+    const [tech] = await db
+      .select({ fullName: techniciansTable.fullName, avatarUrl: techniciansTable.avatarUrl })
+      .from(techniciansTable)
+      .where(eq(techniciansTable.id, claim.technicianId));
+
+    await db
+      .insert(profilesTable)
+      .values({
+        userId: claim.claimantUserId,
+        userType: "technician",
+        fullName: tech?.fullName ?? claim.claimantName,
+        avatarUrl: tech?.avatarUrl ?? null,
+      })
+      .onConflictDoUpdate({
+        target: profilesTable.userId,
+        set: { userType: "technician" },
+      });
+  }
 
   res.json({ ok: true });
 });

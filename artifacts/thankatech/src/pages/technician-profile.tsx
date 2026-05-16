@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Helmet } from "react-helmet-async";
 import { technicianPageTitle, technicianPageDescription, canonicalUrl } from "@/lib/seo";
 import { toast } from "sonner";
@@ -65,11 +66,21 @@ export function TechnicianProfile() {
   const [address, setAddress] = useState("");
   const [confirmedTitle, setConfirmedTitle] = useState("");
 
+  const { user } = useAuth();
+
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   const [claimDone, setClaimDone] = useState(false);
   const [claimName, setClaimName] = useState("");
   const [claimEmail, setClaimEmail] = useState("");
   const [claimPhone, setClaimPhone] = useState("");
+
+  // Pre-fill name/email from auth account when dialog opens
+  useEffect(() => {
+    if (claimDialogOpen && user) {
+      if (!claimName) setClaimName([user.firstName, user.lastName].filter(Boolean).join(" "));
+      if (!claimEmail && user.email) setClaimEmail(user.email);
+    }
+  }, [claimDialogOpen, user]);
 
   function handleDialogOpenChange(open: boolean) {
     setDialogOpen(open);
@@ -284,11 +295,21 @@ export function TechnicianProfile() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Flag size={18} className="text-amber-600 shrink-0" />
-              <p className="text-sm text-amber-800 font-medium">Is this your business? Claim this profile to manage it.</p>
+              <p className="text-sm text-amber-800 font-medium">
+                {user ? "Is this your business? Claim this profile to manage it." : "Is this your business? Sign in to claim this profile."}
+              </p>
             </div>
-            <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={() => setClaimDialogOpen(true)}>
-              Claim profile
-            </Button>
+            {user ? (
+              <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={() => setClaimDialogOpen(true)}>
+                Claim profile
+              </Button>
+            ) : (
+              <a href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/auth/login`}>
+                <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
+                  Sign in to claim
+                </Button>
+              </a>
+            )}
           </div>
         )}
         {tech.claimRequestPending && (

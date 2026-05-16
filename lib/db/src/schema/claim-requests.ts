@@ -9,6 +9,7 @@ export const claimRequestsTable = pgTable("claim_requests", {
   claimantName: text("claimant_name").notNull(),
   claimantEmail: text("claimant_email").notNull(),
   claimantPhone: text("claimant_phone").notNull(),
+  claimantUserId: varchar("claimant_user_id"),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   reviewNote: text("review_note"),

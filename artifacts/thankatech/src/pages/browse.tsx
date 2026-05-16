@@ -9,8 +9,11 @@ import { Search, MapPin, Heart, Navigation, Loader2, Wrench } from "lucide-react
 import { TechAvatar } from "@/components/TechAvatar";
 import { ALL_CITIES, ALL_SPECIALTIES } from "@/lib/seo";
 
+const PAGE_SIZE = 24;
+
 export function Browse() {
   const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -69,7 +72,7 @@ export function Browse() {
                 placeholder="Search by name or specialty..."
                 className="pl-10 h-12 text-base rounded-full"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
               />
             </div>
             {userLocation ? (
@@ -143,7 +146,7 @@ export function Browse() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {technicians?.map(tech => (
+            {technicians?.slice(0, visibleCount).map(tech => (
               <Card key={tech.id} className="overflow-hidden hover:shadow-md transition-all group border-primary/5">
                 <CardContent className="p-0">
                   <div className="p-6 space-y-4">
@@ -206,6 +209,21 @@ export function Browse() {
                 <p className="text-lg">No technicians found matching your search.</p>
               </div>
             )}
+          </div>
+        )}
+
+        {technicians && visibleCount < technicians.length && (
+          <div className="text-center pt-4 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Showing {Math.min(visibleCount, technicians.length)} of {technicians.length} technicians
+            </p>
+            <Button
+              variant="outline"
+              className="rounded-full px-8"
+              onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+            >
+              Load more
+            </Button>
           </div>
         )}
       </div>

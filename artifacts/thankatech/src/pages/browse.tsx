@@ -6,7 +6,6 @@ import type { Technician } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, Heart, Navigation, Loader2, Wrench, ChevronDown, X, ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
-import { TechAvatar } from "@/components/TechAvatar";
 import { ALL_CITIES, ALL_SPECIALTIES } from "@/lib/seo";
 import { motion, useMotionValue, useTransform, animate, PanInfo } from "framer-motion";
 
@@ -113,72 +112,76 @@ function SwipeCard({
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={isTop ? handleDragEnd : undefined}
     >
-      <div className="w-full h-full bg-card rounded-3xl border border-border shadow-lg overflow-hidden flex flex-col select-none">
-        {/* Photo / avatar area */}
-        <div className="relative flex-1 min-h-0 bg-gradient-to-b from-muted/40 to-muted flex items-center justify-center overflow-hidden">
-          <TechAvatar
-            avatarUrl={tech.avatarUrl}
-            fullName={tech.fullName}
-            specialty={tech.specialty}
-            className="w-32 h-32"
-            iconSize={52}
+      <div className="w-full h-full rounded-3xl overflow-hidden relative shadow-xl select-none">
+        {/* Full-bleed photo */}
+        {tech.avatarUrl ? (
+          <img
+            src={tech.avatarUrl}
+            alt={tech.fullName}
+            className="absolute inset-0 w-full h-full object-cover"
+            draggable={false}
           />
-
-          {/* Like overlay */}
-          {isTop && (
-            <motion.div
-              className="absolute top-8 left-8 px-4 py-2 rounded-xl border-4 border-secondary bg-secondary/10 rotate-[-12deg]"
-              style={{ opacity: likeOpacity }}
-            >
-              <span className="text-secondary font-black text-2xl tracking-wide">THANKS</span>
-            </motion.div>
-          )}
-
-          {/* Skip overlay */}
-          {isTop && (
-            <motion.div
-              className="absolute top-8 right-8 px-4 py-2 rounded-xl border-4 border-destructive bg-destructive/10 rotate-[12deg]"
-              style={{ opacity: skipOpacity }}
-            >
-              <span className="text-destructive font-black text-2xl tracking-wide">SKIP</span>
-            </motion.div>
-          )}
-
-          {/* Badges */}
-          <div className="absolute top-4 left-4 flex flex-col gap-1">
-            {tech.featuredUntil && new Date(tech.featuredUntil) > new Date() && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary text-white shadow">
-                ★ Featured
-              </span>
-            )}
-            {tech.badges?.includes("top_tech_badge") && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-secondary/90 text-white shadow">
-                ✓ Top Tech
-              </span>
-            )}
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
+            <Wrench size={72} className="text-white/30" strokeWidth={1.5} />
           </div>
+        )}
+
+        {/* Bottom gradient scrim */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+        {/* THANKS stamp */}
+        {isTop && (
+          <motion.div
+            className="absolute top-8 left-6 px-4 py-2 rounded-xl border-4 border-[#22c55e] rotate-[-12deg]"
+            style={{ opacity: likeOpacity }}
+          >
+            <span className="text-[#22c55e] font-black text-2xl tracking-widest drop-shadow">THANKS</span>
+          </motion.div>
+        )}
+
+        {/* SKIP stamp */}
+        {isTop && (
+          <motion.div
+            className="absolute top-8 right-6 px-4 py-2 rounded-xl border-4 border-red-400 rotate-[12deg]"
+            style={{ opacity: skipOpacity }}
+          >
+            <span className="text-red-400 font-black text-2xl tracking-widest drop-shadow">SKIP</span>
+          </motion.div>
+        )}
+
+        {/* Badges top-left */}
+        <div className="absolute top-4 left-4 flex flex-col gap-1">
+          {tech.featuredUntil && new Date(tech.featuredUntil) > new Date() && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary text-white shadow">
+              ★ Featured
+            </span>
+          )}
+          {tech.badges?.includes("top_tech_badge") && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-secondary/90 text-white shadow">
+              ✓ Top Tech
+            </span>
+          )}
         </div>
 
-        {/* Info area */}
-        <div className="p-5 space-y-2 bg-card">
-          <div>
-            <h3 className="font-serif font-bold text-xl leading-tight">{tech.fullName}</h3>
-            <p className="text-sm font-medium text-secondary flex items-center gap-1 mt-0.5">
-              <Wrench size={13} />
-              {tech.specialty}
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        {/* Info overlay at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+          <h3 className="font-serif font-bold text-2xl leading-tight">{tech.fullName}</h3>
+          <p className="text-sm font-medium text-white/80 flex items-center gap-1 mt-0.5">
+            <Wrench size={13} />
+            {tech.specialty}
+          </p>
+          <div className="flex items-center gap-3 mt-2 text-sm text-white/70">
             <span className="flex items-center gap-1">
               <MapPin size={13} />
               {tech.serviceArea?.split(",")[1]?.trim() ?? tech.serviceArea}
             </span>
             <span className="flex items-center gap-1">
-              <Heart size={13} className="text-primary" />
-              <span className="font-semibold text-foreground">{tech.totalThanks}</span> thanks
+              <Heart size={13} className="text-red-400" />
+              <span className="font-semibold text-white">{tech.totalThanks}</span>
             </span>
             {tech.distanceMiles != null && (
-              <span className="ml-auto font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full text-xs">
+              <span className="ml-auto font-medium bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs text-white">
                 {tech.distanceMiles} mi
               </span>
             )}

@@ -158,7 +158,7 @@ export function Browse() {
             <div className="text-center space-y-3">
               <h2 className="text-xl font-serif font-semibold">Browse by Specialty</h2>
               <div className="flex flex-wrap gap-2 justify-center">
-                {ALL_SPECIALTIES.slice(0, 6).map(([slug, label]) => (
+                {ALL_SPECIALTIES.map(([slug, label]) => (
                   <Link key={slug} href={`/browse/specialty/${slug}`}>
                     <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
                   </Link>

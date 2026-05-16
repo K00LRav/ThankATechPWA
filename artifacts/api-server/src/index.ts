@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./lib/stripeClient";
 import type Stripe from "stripe";
+import { seedTechniciansIfEmpty } from "./seed-technicians.js";
 
 const rawPort = process.env["PORT"];
 
@@ -89,6 +90,7 @@ async function initStripe() {
 }
 
 await initStripe();
+await seedTechniciansIfEmpty();
 
 app.listen(port, (err) => {
   if (err) {

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Heart, Clock, AlertCircle, CheckCircle2, XCircle, Timer, Wrench,
-  ThumbsUp, Star, Sparkles, Tag, TrendingUp, Gift, Search,
+  ThumbsUp, Star, Sparkles, Tag, TrendingUp, Gift, Search, Copy, Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
   tip_discount_5:   <Tag className="w-5 h-5 text-green-600" />,
@@ -142,6 +149,8 @@ export function CustomerDashboard() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [voucherDialog, setVoucherDialog] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const [cancelConfirmJobId, setCancelConfirmJobId] = useState<number | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<number | null>(null);
@@ -205,15 +214,31 @@ export function CustomerDashboard() {
     if (!profileId) return;
     setRedeeming(rewardId);
     try {
-      await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } });
+      const result = await redeemMutation.mutateAsync({ userId: profileId, data: { rewardId } }) as {
+        voucherCode?: string;
+        voucherExpiresAt?: string;
+        reward?: { name?: string };
+        newBalance?: number;
+      };
       await queryClient.invalidateQueries({ queryKey: getGetPointsQueryKey(profileId) });
       await queryClient.invalidateQueries({ queryKey: getGetPointTransactionsQueryKey(profileId) });
-      toast.success("Reward redeemed! Check your email for details.");
+      if (result?.voucherCode && result?.voucherExpiresAt) {
+        setVoucherDialog({ code: result.voucherCode, expiresAt: result.voucherExpiresAt });
+      } else {
+        toast.success(`Reward redeemed! You now have ${result?.newBalance ?? 0} pts.`);
+      }
     } catch {
       toast.error("Could not redeem reward. Make sure you have enough points.");
     } finally {
       setRedeeming(null);
     }
+  }
+
+  function copyVoucherCode(code: string) {
+    navigator.clipboard.writeText(code).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
   }
 
   if (!profileId) {
@@ -578,6 +603,43 @@ export function CustomerDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Voucher code dialog */}
+      <Dialog open={!!voucherDialog} onOpenChange={(open) => { if (!open) setVoucherDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Your discount code is ready! 🎉</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Use this code in the tip step of your next thank you to get 5% off.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="bg-primary/5 border-2 border-dashed border-primary/40 rounded-xl p-5 text-center space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">Your voucher code</p>
+              <p className="text-3xl font-black text-primary tracking-widest font-mono">{voucherDialog?.code}</p>
+              {voucherDialog?.expiresAt && (
+                <p className="text-xs text-muted-foreground">
+                  5% off your next tip · expires {new Date(voucherDialog.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
+              )}
+            </div>
+            <Button
+              className="w-full rounded-full gap-2"
+              variant="outline"
+              onClick={() => voucherDialog && copyVoucherCode(voucherDialog.code)}
+            >
+              {codeCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {codeCopied ? "Copied!" : "Copy code"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              A copy has also been sent to your email for safekeeping. One-time use only.
+            </p>
+            <Button className="w-full rounded-full" onClick={() => setVoucherDialog(null)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

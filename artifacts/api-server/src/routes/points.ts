@@ -64,11 +64,12 @@ async function fulfillReward(
   reward: Reward,
   profileId: number,
   replitUserId: string,
-  profile: { fullName: string; userType: string }
+  profile: { fullName: string; userType: string },
+  preGeneratedCode?: string
 ): Promise<void> {
   switch (reward.id) {
     case "tip_discount_5": {
-      const code = generateVoucherCode();
+      const code = preGeneratedCode ?? generateVoucherCode();
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 3);
       await db.insert(discountVouchersTable).values({
@@ -261,8 +262,18 @@ router.post("/points/:userId/redeem", async (req, res) => {
       });
     }
 
+    // For voucher rewards, generate the code here so it can be returned in the response
+    let voucherCode: string | undefined;
+    let voucherExpiresAt: string | undefined;
+    if (reward.id === "tip_discount_5") {
+      voucherCode = generateVoucherCode();
+      const exp = new Date();
+      exp.setMonth(exp.getMonth() + 3);
+      voucherExpiresAt = exp.toISOString();
+    }
+
     // Fulfill the reward (fire-and-forget so a delivery failure doesn't block the response)
-    fulfillReward(reward, requestedId, req.user.id, profile).catch(err =>
+    fulfillReward(reward, requestedId, req.user.id, profile, voucherCode).catch(err =>
       req.log.warn({ err, rewardId: reward.id, profileId: requestedId }, "Reward fulfillment failed (points already deducted)")
     );
 
@@ -276,6 +287,7 @@ router.post("/points/:userId/redeem", async (req, res) => {
         cost: reward.cost,
         category: reward.category,
       },
+      ...(voucherCode && { voucherCode, voucherExpiresAt }),
     });
   } catch (err) {
     req.log.error({ err }, "Error redeeming points");

@@ -6,3 +6,4 @@ export * from "./thanks";
 export * from "./points";
 export * from "./push-tokens";
 export * from "./badges";
+export * from "./guest-tips";

@@ -15,6 +15,7 @@ import { Login, Onboard } from "@/pages/login";
 import { RetryTip } from "@/pages/retry-tip";
 import { JobDetail } from "@/pages/job-detail";
 import { About } from "@/pages/about";
+import { GuestTip } from "@/pages/guest-tip";
 import { Terms } from "@/pages/terms";
 import { Privacy } from "@/pages/privacy";
 import { Admin } from "@/pages/admin";
@@ -57,6 +58,7 @@ function Router() {
               <JobDetail />
             </ProtectedRoute>
           </Route>
+          <Route path="/tip/:technicianId" component={GuestTip} />
           <Route path="/about" component={About} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />

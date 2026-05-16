@@ -186,9 +186,10 @@ export function TechnicianDashboard() {
   const completedJobs = jobs?.filter(j => j.status === 'completed') ?? [];
 
   const profileUrl = `https://www.thankatech.com/technician/${technicianId}`;
+  const tipUrl = `https://www.thankatech.com/tip/${technicianId}`;
 
   function copyProfileLink() {
-    navigator.clipboard.writeText(profileUrl).then(() => {
+    navigator.clipboard.writeText(tipUrl).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     });
@@ -741,10 +742,10 @@ export function TechnicianDashboard() {
               <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Real thanks. Real tips. No ratings.</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-border inline-block mx-auto">
-              <QRCode value={profileUrl} size={140} fgColor="#2d2926" />
+              <QRCode value={tipUrl} size={140} fgColor="#2d2926" />
             </div>
-            <p className="text-xs text-muted-foreground">Scan to view my profile &amp; send a thank you</p>
-            <p className="text-xs font-medium text-primary break-all">{profileUrl}</p>
+            <p className="text-xs text-muted-foreground">Scan to send a thank you — no account needed</p>
+            <p className="text-xs font-medium text-primary break-all">{tipUrl}</p>
           </div>
 
           {/* Actions */}

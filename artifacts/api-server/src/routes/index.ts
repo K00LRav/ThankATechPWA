@@ -10,6 +10,7 @@ import profileRouter from "./profile";
 import stripeRouter from "./stripe";
 import pushTokensRouter from "./push-tokens";
 import adminRouter from "./admin";
+import guestTipsRouter from "./guest-tips";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(profileRouter);
 router.use(stripeRouter);
 router.use(pushTokensRouter);
 router.use(adminRouter);
+router.use(guestTipsRouter);
 
 export default router;

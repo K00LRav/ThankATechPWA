@@ -24,6 +24,12 @@ const CITIES = [
   "San Diego, CA",
 ];
 
+interface PlacePhoto {
+  photo_reference: string;
+  height: number;
+  width: number;
+}
+
 interface PlaceResult {
   place_id: string;
   name: string;
@@ -32,6 +38,7 @@ interface PlaceResult {
   geometry?: { location: { lat: number; lng: number } };
   rating?: number;
   types?: string[];
+  photos?: PlacePhoto[];
 }
 
 interface TextSearchResponse {
@@ -40,11 +47,14 @@ interface TextSearchResponse {
   next_page_token?: string;
 }
 
+function buildPhotoUrl(photoReference: string): string {
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoReference}&key=${GOOGLE_MAPS_API_KEY}`;
+}
+
 async function searchPlaces(query: string, location: string): Promise<PlaceResult[]> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
   url.searchParams.set("query", `${query} in ${location}`);
   url.searchParams.set("key", GOOGLE_MAPS_API_KEY!);
-  url.searchParams.set("type", "establishment");
 
   const resp = await fetch(url.toString());
   const data = (await resp.json()) as TextSearchResponse;
@@ -58,6 +68,17 @@ async function searchPlaces(query: string, location: string): Promise<PlaceResul
 
 function cityShortName(city: string): string {
   return city.split(",")[0].trim();
+}
+
+function buildServiceArea(place: PlaceResult, shortCity: string): string {
+  if (place.formatted_address) {
+    const parts = place.formatted_address.split(",");
+    if (parts.length >= 2) {
+      return `${parts[0].trim()}, ${shortCity}`;
+    }
+  }
+  if (place.vicinity) return `${place.vicinity}, ${shortCity}`;
+  return shortCity;
 }
 
 function buildBio(name: string, specialty: string, city: string): string {
@@ -88,7 +109,9 @@ async function importCity(city: string): Promise<number> {
       }
 
       const shortCity = cityShortName(city);
-      const serviceArea = place.vicinity ? `${place.vicinity}, ${shortCity}` : shortCity;
+      const serviceArea = buildServiceArea(place, shortCity);
+      const photoRef = place.photos?.[0]?.photo_reference ?? null;
+      const avatarUrl = photoRef ? buildPhotoUrl(photoRef) : null;
 
       await db.insert(techniciansTable).values({
         fullName: place.name,
@@ -100,11 +123,13 @@ async function importCity(city: string): Promise<number> {
         latitude: place.geometry?.location.lat ?? null,
         longitude: place.geometry?.location.lng ?? null,
         googlePlaceId: place.place_id,
+        avatarUrl,
         claimed: false,
         claimRequestPending: false,
       });
 
-      console.log(`    Imported: ${place.name} (${label})`);
+      const photoStatus = avatarUrl ? "📷 with photo" : "no photo";
+      console.log(`    ✓ ${place.name} (${label}) [${photoStatus}]`);
       imported++;
     }
 
@@ -121,9 +146,9 @@ async function main() {
   const targetCities = process.argv[2] ? [process.argv[2]] : CITIES;
 
   for (const city of targetCities) {
-    console.log(`\nProcessing city: ${city}`);
+    console.log(`\nProcessing: ${city}`);
     const count = await importCity(city);
-    console.log(`  Imported ${count} new profiles from ${city}`);
+    console.log(`  → ${count} new profiles from ${city}`);
     total += count;
     await new Promise((r) => setTimeout(r, 500));
   }

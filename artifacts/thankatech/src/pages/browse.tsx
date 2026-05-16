@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, MapPin, Heart, Navigation, Loader2, Wrench } from "lucide-react";
 import { TechAvatar } from "@/components/TechAvatar";
+import { ALL_CITIES, ALL_SPECIALTIES } from "@/lib/seo";
 
 export function Browse() {
   const [search, setSearch] = useState("");
@@ -107,6 +108,34 @@ export function Browse() {
             </p>
           )}
         </div>
+
+        {!search && !userLocation && (
+          <div className="space-y-6">
+            <div className="text-center space-y-3">
+              <h2 className="text-xl font-serif font-semibold">Browse by City</h2>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {ALL_CITIES.map(([slug, name]) => (
+                  <Link key={slug} href={`/browse/city/${slug}`}>
+                    <Button variant="outline" size="sm" className="rounded-full">{name}</Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="text-center space-y-3">
+              <h2 className="text-xl font-serif font-semibold">Browse by Specialty</h2>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {ALL_SPECIALTIES.map(([slug, label]) => (
+                  <Link key={slug} href={`/browse/specialty/${slug}`}>
+                    <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="border-t pt-6">
+              <h2 className="text-xl font-serif font-semibold mb-4 text-center">All Technicians</h2>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -11,14 +11,6 @@ export const CITY_SLUGS: Record<string, string> = {
   "philadelphia": "Philadelphia",
   "san-antonio": "San Antonio",
   "san-diego": "San Diego",
-  "dallas": "Dallas",
-  "austin": "Austin",
-  "miami": "Miami",
-  "seattle": "Seattle",
-  "denver": "Denver",
-  "boston": "Boston",
-  "atlanta": "Atlanta",
-  "portland": "Portland",
 };
 
 export const SPECIALTY_SLUGS: Record<string, string> = {

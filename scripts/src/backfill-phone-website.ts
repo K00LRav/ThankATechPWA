@@ -33,7 +33,7 @@ async function main() {
     .from(techniciansTable)
     .where(isNotNull(techniciansTable.googlePlaceId));
 
-  const todo = rows.filter(r => !r.phone && !r.website);
+  const todo = rows.filter(r => !r.phone || !r.website);
   console.log(`Found ${rows.length} imported profiles, ${todo.length} need phone/website backfill.\n`);
 
   let updated = 0;

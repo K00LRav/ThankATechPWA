@@ -1,5 +1,8 @@
 import { db, techniciansTable } from "@workspace/db";
-  import { sql, isNull, or, eq } from "drizzle-orm";
+import { sql, isNull, or, eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
   const SEED_DATA = [
     { fullName: 'Manhattan HVAC & Appliance Repair Inc', avatarUrl: 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=Ab43m-uhq_5ujck4cfEiVRmNOI1XtVp2Q48ypDEN0WJbeNyoYrdW9fyT8PYOZnt-tCXYaPNcdcbnilLQx65aWGvplDHwy7aqvhEdIV0P-vhpOg1k7TQv09N9EEo-QSy4lWVQ95pnfa9IuLpLvAwCULhZVW8P4sOKwh4g3ZIGVYk2Imgms_iqXGjgr9LZUHk7nb6_paCvPH7eavmbFrWAg3RKGcJLo1YEG-xEAcgOESdp65jWLs1PMNSuoCWStmZf2I5-D5W8ZQEXoOeyHTT_Mc9eFzUCSRBHiZ6y2bDjqs4fPzvi9Q&key=AIzaSyATA7UJUNHXdQmJYYBmfvddNvWC568VN4Y', specialty: 'HVAC', serviceArea: '48 W 14th St, New York City', bio: 'Manhattan HVAC & Appliance Repair Inc provides expert hvac services to residents and businesses in New York City.', hourlyRate: '109.00', googlePlaceId: 'ChIJ-bzRYMJZwokRBwtC5yGZi8w', phone: '(332) 334-0444', website: 'https://www.manhattan-hvac-repair.com/', latitude: 40.7368207, longitude: -73.9959397 },
@@ -1036,6 +1039,61 @@ import { db, techniciansTable } from "@workspace/db";
       console.log(`[seed] Patch done.`);
     }
   }
+
+export async function seedAllTechnicians(): Promise<void> {
+  const result = await db.execute<{ count: string }>(
+    sql`SELECT COUNT(*)::text AS count FROM technicians`
+  );
+  const count = parseInt(result.rows[0]?.count ?? "0", 10);
+  if (count >= 9000) return;
+
+  console.log(`[seed] Production DB has ${count} technicians — seeding full dataset...`);
+
+  const seedPath = join(
+    typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url)),
+    "technicians-seed.json"
+  );
+
+  type SeedRow = {
+    fullName: string; specialty: string; serviceArea: string; bio: string;
+    hourlyRate: number; latitude: number | null; longitude: number | null;
+    googlePlaceId: string; avatarUrl: string | null; phone: string | null; website: string | null;
+  };
+
+  let allRows: SeedRow[];
+  try {
+    allRows = JSON.parse(readFileSync(seedPath, "utf-8")) as SeedRow[];
+  } catch (e) {
+    console.error("[seed] Could not load technicians-seed.json:", e);
+    return;
+  }
+
+  let inserted = 0;
+  for (let i = 0; i < allRows.length; i += 100) {
+    const chunk = allRows.slice(i, i + 100);
+    const res = await db.insert(techniciansTable).values(
+      chunk.map(r => ({
+        fullName: r.fullName,
+        avatarUrl: r.avatarUrl ?? undefined,
+        specialty: r.specialty ?? undefined,
+        specialties: r.specialty ? [r.specialty] : undefined,
+        serviceArea: r.serviceArea ?? undefined,
+        bio: r.bio ?? undefined,
+        hourlyRate: r.hourlyRate != null ? String(r.hourlyRate) : undefined,
+        googlePlaceId: r.googlePlaceId ?? undefined,
+        phone: r.phone ?? undefined,
+        website: r.website ?? undefined,
+        latitude: r.latitude ?? undefined,
+        longitude: r.longitude ?? undefined,
+        claimed: false,
+        claimRequestPending: false,
+      }))
+    ).onConflictDoNothing();
+    inserted += res.rowCount ?? 0;
+  }
+
+  console.log(`[seed] Inserted ${inserted} new technician profiles. Total now: ${count + inserted}.`);
+}
 
 export async function removeDemoTechnicians(): Promise<void> {
   const result = await db.execute<{ count: string }>(

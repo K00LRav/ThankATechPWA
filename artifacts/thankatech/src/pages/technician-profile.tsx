@@ -11,7 +11,6 @@ import {
   getGetTechnicianStatsQueryKey
 } from "@workspace/api-client-react";
 import { useMyProfile } from "@/hooks/useMyProfile";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TechAvatar } from "@/components/TechAvatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,9 +25,23 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+
+// ── Milestone badge definitions ───────────────────────────────────────────────
+const MILESTONES = [
+  { id: "first_thanks",        label: "First Thanks",        emoji: "🌱", min: 1   },
+  { id: "rising_star",         label: "Rising Star",         emoji: "⭐", min: 10  },
+  { id: "community_favorite",  label: "Community Favorite",  emoji: "💛", min: 25  },
+  { id: "trusted_pro",         label: "Trusted Pro",         emoji: "🏅", min: 50  },
+  { id: "elite_tech",          label: "Elite Tech",          emoji: "🏆", min: 100 },
+] as const;
+
+function getMilestoneBadge(totalThanks: number) {
+  return [...MILESTONES].reverse().find(m => totalThanks >= m.min) ?? null;
+}
 
 type DialogStep = "form" | "confirmation";
 
@@ -130,6 +143,14 @@ export function TechnicianProfile() {
                 <span className="flex items-center gap-1.5"><MapPin size={16}/> {tech.serviceArea}</span>
                 <span className="flex items-center gap-1.5 text-primary"><Heart size={16} fill="currentColor"/> {stats?.totalThanks || 0} Thanks</span>
                 {tech.hourlyRate && <span className="flex items-center gap-1.5"><DollarSign size={16}/> ${tech.hourlyRate}/hr</span>}
+                {(() => {
+                  const badge = getMilestoneBadge(stats?.totalThanks ?? 0);
+                  return badge ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                      {badge.emoji} {badge.label}
+                    </span>
+                  ) : null;
+                })()}
               </div>
               {isCustomer && (
                 <Button
@@ -151,43 +172,53 @@ export function TechnicianProfile() {
               )}
 
               {/* Share profile */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs text-muted-foreground font-medium">Share:</span>
-                <button
-                  onClick={copyShareLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
-                >
-                  {shareLinkCopied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
-                  {shareLinkCopied ? "Copied!" : "Copy link"}
-                </button>
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
-                >
-                  <Share2 size={12} /> X
-                </a>
-                <a
-                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
-                >
-                  <Share2 size={12} /> Facebook
-                </a>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
-                >
-                  <Share2 size={12} /> WhatsApp
-                </a>
-                <a
-                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
-                >
-                  <Share2 size={12} /> LinkedIn
-                </a>
+              <div className="flex justify-center md:justify-start pt-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 bg-background/70 border-border">
+                      <Share2 size={14} /> Share profile
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-52 p-2" align="start">
+                    <div className="space-y-0.5">
+                      <button
+                        onClick={copyShareLink}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors text-left"
+                      >
+                        {shareLinkCopied ? <Check size={14} className="text-green-600 shrink-0" /> : <Copy size={14} className="shrink-0" />}
+                        {shareLinkCopied ? "Copied!" : "Copy link"}
+                      </button>
+                      <a
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors"
+                      >
+                        <span className="font-bold text-sm leading-none shrink-0 w-4 text-center">𝕏</span> Post on X
+                      </a>
+                      <a
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors"
+                      >
+                        <span className="font-bold text-sm leading-none shrink-0 w-4 text-center text-blue-600">f</span> Facebook
+                      </a>
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors"
+                      >
+                        <span className="text-sm leading-none shrink-0 w-4 text-center">💬</span> WhatsApp
+                      </a>
+                      <a
+                        href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors"
+                      >
+                        <span className="font-bold text-sm leading-none shrink-0 w-4 text-center text-blue-700">in</span> LinkedIn
+                      </a>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -197,6 +228,31 @@ export function TechnicianProfile() {
       <div className="container mx-auto max-w-4xl px-4 -mt-8 space-y-8">
         <Card className="shadow-md border-0">
           <CardContent className="p-8 space-y-6">
+            {/* Milestone badges strip */}
+            <div>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Thank You Milestones</h2>
+              <div className="flex flex-wrap gap-2">
+                {MILESTONES.map(m => {
+                  const earned = (stats?.totalThanks ?? 0) >= m.min;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        earned
+                          ? "bg-amber-50 border-amber-300 text-amber-800"
+                          : "bg-muted/50 border-border text-muted-foreground opacity-50"
+                      }`}
+                      title={earned ? `Earned at ${m.min} thanks` : `Unlocks at ${m.min} thanks`}
+                    >
+                      <span>{m.emoji}</span>
+                      <span>{m.label}</span>
+                      {!earned && <span className="text-[10px] opacity-70">({m.min}+)</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <h2 className="text-xl font-serif font-bold mb-3">About Me</h2>
               <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{tech.bio}</p>

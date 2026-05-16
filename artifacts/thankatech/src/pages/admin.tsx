@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Wrench, Briefcase, Heart, DollarSign, Trash2, ShieldCheck, Loader2, TrendingUp, ClipboardList, Check, X, Phone, Mail, MapPin, ExternalLink } from "lucide-react";
+import { Users, Wrench, Briefcase, Heart, DollarSign, Trash2, ShieldCheck, Loader2, ClipboardList, Check, X, Phone, Mail, MapPin, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -42,19 +41,102 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   );
 }
 
+// ─── Shared: Search + Pagination bar ─────────────────────────────────────────
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      <input
+        type="search"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder ?? "Search…"}
+        className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
+    </div>
+  );
+}
+
+function Pager({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  const pages: (number | "…")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) pages.push(i);
+    else if (pages[pages.length - 1] !== "…") pages.push("…");
+  }
+  return (
+    <div className="flex items-center justify-center gap-1 pt-2">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="p-1.5 rounded-lg border text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft size={15} />
+      </button>
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p as number)}
+            className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition-colors ${p === page ? "bg-primary text-white" : "border hover:bg-muted"}`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="p-1.5 rounded-lg border text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronRight size={15} />
+      </button>
+    </div>
+  );
+}
+
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 function UsersTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    apiFetch("/api/admin/users").then(setUsers).finally(() => setLoading(false));
+  const load = useCallback((search: string, pg: number) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(pg), limit: "50", q: search });
+    apiFetch(`/api/admin/users?${params}`)
+      .then((data: any) => {
+        setUsers(data.rows);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load("", 1); }, [load]);
+
+  function handleSearch(v: string) {
+    setQ(v);
+    setPage(1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => load(v, 1), 300);
+  }
+
+  function handlePage(p: number) {
+    setPage(p);
+    load(q, p);
+  }
 
   async function deleteUser(id: string) {
     if (!confirm("Delete this user and their profile? This cannot be undone.")) return;
     await apiFetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    setUsers(u => u.filter(x => x.id !== id));
+    load(q, page);
   }
 
   async function toggleAdmin(id: string, cur: boolean) {
@@ -66,52 +148,71 @@ function UsersTab() {
     setUsers(u => u.map(x => x.id === id ? { ...x, isAdmin: !cur } : x));
   }
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>;
-
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">{users.length} total users</p>
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 border-b">
-            <tr>
-              {["Name", "Email", "Type", "Joined", "Admin", ""].map(h => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {users.map(u => (
-              <tr key={u.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 font-medium">{u.fullName || `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{u.email || "—"}</td>
-                <td className="px-4 py-3">
-                  {u.userType ? (
-                    <Badge variant={u.userType === "technician" ? "default" : "secondary"} className="capitalize">
-                      {u.userType}
-                    </Badge>
-                  ) : <span className="text-muted-foreground text-xs">no profile</span>}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{fmtDate(u.createdAt)}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleAdmin(u.id, u.isAdmin)}
-                    className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors ${u.isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-                  >
-                    <ShieldCheck size={12} />
-                    {u.isAdmin ? "Admin" : "Make admin"}
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <button onClick={() => deleteUser(u.id)} className="text-destructive hover:text-destructive/80 transition-colors">
-                    <Trash2 size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-sm text-muted-foreground shrink-0">
+          {total} user{total !== 1 ? "s" : ""}
+          {q && ` matching "${q}"`}
+        </p>
+        <div className="w-full sm:w-72">
+          <SearchBar value={q} onChange={handleSearch} placeholder="Search by name or email…" />
+        </div>
       </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Users size={36} className="mx-auto mb-3 opacity-40" />
+          <p className="font-medium">{q ? "No users match your search" : "No users yet"}</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Name", "Email", "Type", "Joined", "Admin", ""].map(h => (
+                    <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {users.map(u => (
+                  <tr key={u.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3 font-medium">{u.fullName || `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{u.email || "—"}</td>
+                    <td className="px-4 py-3">
+                      {u.userType ? (
+                        <Badge variant={u.userType === "technician" ? "default" : "secondary"} className="capitalize">
+                          {u.userType}
+                        </Badge>
+                      ) : <span className="text-muted-foreground text-xs">no profile</span>}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{fmtDate(u.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggleAdmin(u.id, u.isAdmin)}
+                        className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors ${u.isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                      >
+                        <ShieldCheck size={12} />
+                        {u.isAdmin ? "Admin" : "Make admin"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => deleteUser(u.id)} className="text-destructive hover:text-destructive/80 transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} totalPages={totalPages} onChange={handlePage} />
+        </>
+      )}
     </div>
   );
 }
@@ -120,51 +221,97 @@ function UsersTab() {
 function TechniciansTab() {
   const [techs, setTechs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    apiFetch("/api/admin/technicians").then(setTechs).finally(() => setLoading(false));
+  const load = useCallback((search: string, pg: number) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(pg), limit: "50", q: search });
+    apiFetch(`/api/admin/technicians?${params}`)
+      .then((data: any) => {
+        setTechs(data.rows);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load("", 1); }, [load]);
+
+  function handleSearch(v: string) {
+    setQ(v);
+    setPage(1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => load(v, 1), 300);
+  }
+
+  function handlePage(p: number) {
+    setPage(p);
+    load(q, p);
+  }
 
   async function deleteTech(id: number) {
     if (!confirm("Remove this technician? Their profile will be deleted.")) return;
     await apiFetch(`/api/admin/technicians/${id}`, { method: "DELETE" });
-    setTechs(t => t.filter(x => x.id !== id));
+    load(q, page);
   }
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>;
-
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">{techs.length} technicians</p>
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 border-b">
-            <tr>
-              {["ID", "Name", "Specialty", "Location", "Rate", ""].map(h => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {techs.map(t => (
-              <tr key={t.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 text-muted-foreground">#{t.id}</td>
-                <td className="px-4 py-3 font-medium">{t.fullName}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="outline">{t.specialty}</Badge>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{t.serviceArea || "—"}</td>
-                <td className="px-4 py-3">{t.hourlyRate ? `$${t.hourlyRate}/hr` : "—"}</td>
-                <td className="px-4 py-3">
-                  <button onClick={() => deleteTech(t.id)} className="text-destructive hover:text-destructive/80 transition-colors">
-                    <Trash2 size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-sm text-muted-foreground shrink-0">
+          {total} technician{total !== 1 ? "s" : ""}
+          {q && ` matching "${q}"`}
+        </p>
+        <div className="w-full sm:w-72">
+          <SearchBar value={q} onChange={handleSearch} placeholder="Search by name, specialty, or city…" />
+        </div>
       </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
+      ) : techs.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Wrench size={36} className="mx-auto mb-3 opacity-40" />
+          <p className="font-medium">{q ? "No technicians match your search" : "No technicians yet"}</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["ID", "Name", "Specialty", "Location", "Rate", ""].map(h => (
+                    <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {techs.map(t => (
+                  <tr key={t.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3 text-muted-foreground">#{t.id}</td>
+                    <td className="px-4 py-3 font-medium">{t.fullName}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline">{t.specialty}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{t.serviceArea || "—"}</td>
+                    <td className="px-4 py-3">{t.hourlyRate ? `$${t.hourlyRate}/hr` : "—"}</td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => deleteTech(t.id)} className="text-destructive hover:text-destructive/80 transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} totalPages={totalPages} onChange={handlePage} />
+        </>
+      )}
     </div>
   );
 }

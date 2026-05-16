@@ -8,7 +8,7 @@ import {
   thankMessagesTable,
   claimRequestsTable,
 } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, ilike, or, count } from "drizzle-orm";
 import { adminMiddleware } from "../middlewares/adminMiddleware";
 
 const router = Router();
@@ -40,10 +40,24 @@ router.get("/admin/stats", async (req, res) => {
   }
 });
 
-// GET /admin/users — all users with their profile
+// GET /admin/users — paginated + searchable
 router.get("/admin/users", async (req, res) => {
   try {
-    const rows = await db
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "50"), 10) || 50));
+    const q = String(req.query.q ?? "").trim();
+    const offset = (page - 1) * limit;
+
+    const where = q
+      ? or(
+          ilike(usersTable.email, `%${q}%`),
+          ilike(usersTable.firstName, `%${q}%`),
+          ilike(usersTable.lastName, `%${q}%`),
+          ilike(profilesTable.fullName, `%${q}%`),
+        )
+      : undefined;
+
+    const baseQuery = db
       .select({
         id: usersTable.id,
         email: usersTable.email,
@@ -56,9 +70,22 @@ router.get("/admin/users", async (req, res) => {
         fullName: profilesTable.fullName,
       })
       .from(usersTable)
-      .leftJoin(profilesTable, eq(profilesTable.userId, usersTable.id))
-      .orderBy(desc(usersTable.createdAt));
-    res.json(rows);
+      .leftJoin(profilesTable, eq(profilesTable.userId, usersTable.id));
+
+    const countQuery = db
+      .select({ total: count() })
+      .from(usersTable)
+      .leftJoin(profilesTable, eq(profilesTable.userId, usersTable.id));
+
+    const [rows, [{ total }]] = await Promise.all([
+      (where ? baseQuery.where(where) : baseQuery)
+        .orderBy(desc(usersTable.createdAt))
+        .limit(limit)
+        .offset(offset),
+      where ? countQuery.where(where) : countQuery,
+    ]);
+
+    res.json({ rows, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     req.log.error({ err }, "admin/users error");
     res.status(500).json({ error: "Internal server error" });
@@ -91,14 +118,34 @@ router.patch("/admin/users/:id/admin", async (req, res) => {
   }
 });
 
-// GET /admin/technicians — all technicians
+// GET /admin/technicians — paginated + searchable
 router.get("/admin/technicians", async (req, res) => {
   try {
-    const rows = await db
-      .select()
-      .from(techniciansTable)
-      .orderBy(desc(techniciansTable.id));
-    res.json(rows);
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "50"), 10) || 50));
+    const q = String(req.query.q ?? "").trim();
+    const offset = (page - 1) * limit;
+
+    const where = q
+      ? or(
+          ilike(techniciansTable.fullName, `%${q}%`),
+          ilike(techniciansTable.specialty, `%${q}%`),
+          ilike(techniciansTable.serviceArea, `%${q}%`),
+        )
+      : undefined;
+
+    const baseQuery = db.select().from(techniciansTable);
+    const countQuery = db.select({ total: count() }).from(techniciansTable);
+
+    const [rows, [{ total }]] = await Promise.all([
+      (where ? baseQuery.where(where) : baseQuery)
+        .orderBy(desc(techniciansTable.id))
+        .limit(limit)
+        .offset(offset),
+      where ? countQuery.where(where) : countQuery,
+    ]);
+
+    res.json({ rows, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     req.log.error({ err }, "admin/technicians error");
     res.status(500).json({ error: "Internal server error" });

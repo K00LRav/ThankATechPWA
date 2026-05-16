@@ -36,7 +36,7 @@ router.post("/technicians/:id/claim", async (req, res) => {
     .set({ claimRequestPending: true })
     .where(eq(techniciansTable.id, techId));
 
-  req.log.info({ techId, email: parsed.data.claimantEmail }, "Claim request submitted");
+  req.log.info({ techId, email: claimantEmail }, "Claim request submitted");
   res.status(201).json({ ok: true });
 });
 

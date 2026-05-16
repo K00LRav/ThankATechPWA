@@ -29,6 +29,9 @@ export function Navbar() {
           <Link href="/browse" className={`text-sm font-medium transition-colors hover:text-primary ${location === '/browse' ? 'text-primary' : 'text-muted-foreground'}`}>
             Browse Techs
           </Link>
+          <Link href="/browse/directory" className={`text-sm font-medium transition-colors hover:text-primary ${location.startsWith('/browse/') && location !== '/browse' ? 'text-primary' : 'text-muted-foreground'}`}>
+            Directory
+          </Link>
           <Link href="/about" className={`text-sm font-medium transition-colors hover:text-primary ${location === '/about' ? 'text-primary' : 'text-muted-foreground'}`}>
             About
           </Link>

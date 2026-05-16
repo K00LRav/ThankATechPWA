@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
+import { Helmet } from "react-helmet-async";
+import { technicianPageTitle, technicianPageDescription, canonicalUrl } from "@/lib/seo";
 import { toast } from "sonner";
 import { 
   useGetTechnician, 
@@ -147,7 +149,22 @@ export function TechnicianProfile() {
 
   if (!tech) return <div className="p-12 text-center text-muted-foreground">Technician not found</div>;
 
+  const seoTitle = technicianPageTitle(tech.fullName, tech.specialty, tech.serviceArea);
+  const seoDesc = technicianPageDescription(tech.fullName, tech.specialty, tech.serviceArea, stats?.totalThanks ?? 0);
+  const seoCanonical = canonicalUrl(`/technician/${id}`);
+
   return (
+    <>
+    <Helmet>
+      <title>{seoTitle}</title>
+      <meta name="description" content={seoDesc} />
+      <link rel="canonical" href={seoCanonical} />
+      <meta property="og:title" content={seoTitle} />
+      <meta property="og:description" content={seoDesc} />
+      <meta property="og:url" content={seoCanonical} />
+      <meta property="og:type" content="profile" />
+      {tech.avatarUrl && <meta property="og:image" content={tech.avatarUrl} />}
+    </Helmet>
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 pb-16">
       <div className="bg-primary/10 pt-16 pb-24 px-4">
         <div className="container mx-auto max-w-4xl">
@@ -541,5 +558,6 @@ export function TechnicianProfile() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

@@ -13,6 +13,7 @@ import adminRouter from "./admin";
 import guestTipsRouter from "./guest-tips";
 import storageRouter from "./storage";
 import claimsRouter from "./claims";
+import sitemapRouter from "./sitemap";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(adminRouter);
 router.use(guestTipsRouter);
 router.use(storageRouter);
 router.use(claimsRouter);
+router.use(sitemapRouter);
 
 export default router;

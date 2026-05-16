@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Link } from "wouter";
+import { Helmet } from "react-helmet-async";
 import { useListTechnicians } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,14 @@ export function Browse() {
   }, []);
 
   return (
+    <>
+    <Helmet>
+      <title>Find a Technician Near You | ThankATech</title>
+      <meta name="description" content="Search and browse trusted HVAC, plumbing, electrical, appliance repair, and locksmith technicians near you. Real customer thank you messages — no fake star ratings." />
+      <link rel="canonical" href="https://www.thankatech.com/browse" />
+      <meta property="og:title" content="Find a Technician Near You | ThankATech" />
+      <meta property="og:description" content="Search and browse trusted HVAC, plumbing, electrical, appliance repair, and locksmith technicians near you. Real customer thank you messages — no fake star ratings." />
+    </Helmet>
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/20 py-12 px-4">
       <div className="container mx-auto max-w-6xl space-y-8">
         <div className="text-center space-y-4 max-w-2xl mx-auto">
@@ -172,5 +181,6 @@ export function Browse() {
         )}
       </div>
     </div>
+    </>
   );
 }

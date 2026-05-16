@@ -83,6 +83,7 @@
     "@uppy/dashboard": "^5.1.1",
     "@uppy/react": "^5.2.0",
     "@workspace/object-storage-web": "workspace:*",
+    "react-helmet-async": "^3.0.0",
     "react-qr-code": "^2.0.21"
   }
 }

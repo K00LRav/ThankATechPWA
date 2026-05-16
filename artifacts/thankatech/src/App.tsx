@@ -19,6 +19,7 @@ import { GuestTip } from "@/pages/guest-tip";
 import { Terms } from "@/pages/terms";
 import { Privacy } from "@/pages/privacy";
 import { Admin } from "@/pages/admin";
+import { CityLandingPage, SpecialtyLandingPage, CitySpecialtyLandingPage, DirectoryPage } from "@/pages/city-landing";
 import { Footer } from "@/components/layout/Footer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -59,6 +60,10 @@ function Router() {
             </ProtectedRoute>
           </Route>
           <Route path="/tip/:technicianId" component={GuestTip} />
+          <Route path="/browse/directory" component={DirectoryPage} />
+          <Route path="/browse/city/:citySlug/:specialty" component={CitySpecialtyLandingPage} />
+          <Route path="/browse/city/:citySlug" component={CityLandingPage} />
+          <Route path="/browse/specialty/:specialty" component={SpecialtyLandingPage} />
           <Route path="/about" component={About} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />

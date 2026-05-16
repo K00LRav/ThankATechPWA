@@ -987,9 +987,10 @@ import { db, techniciansTable } from "@workspace/db";
   ];
 
   export async function seedTechniciansIfEmpty(): Promise<void> {
-    const [{ count }] = await db.execute<{ count: string }>(
+    const result = await db.execute<{ count: string }>(
       sql`SELECT COUNT(*)::text AS count FROM technicians`
     );
+    const count = result.rows[0]?.count ?? "0";
     if (parseInt(count, 10) >= 10) return;
 
     console.log(`[seed] Seeding ${SEED_DATA.length} technicians...`);
@@ -1007,8 +1008,8 @@ import { db, techniciansTable } from "@workspace/db";
           googlePlaceId: r.googlePlaceId ?? undefined,
           phone: r.phone ?? undefined,
           website: r.website ?? undefined,
-          latitude: r.latitude ?? undefined,
-          longitude: r.longitude ?? undefined,
+          latitude: r.latitude != null ? parseFloat(r.latitude) : undefined,
+          longitude: r.longitude != null ? parseFloat(r.longitude) : undefined,
         }))
       ).onConflictDoNothing();
     }

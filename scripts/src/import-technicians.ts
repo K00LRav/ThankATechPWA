@@ -15,6 +15,7 @@ const SPECIALTIES: { query: string; label: string }[] = [
   { query: "handyman service", label: "Handyman" },
   { query: "house cleaning service", label: "Cleaning" },
   { query: "landscaping contractor", label: "Landscaping" },
+  { query: "auto repair shop", label: "Automotive Repair" },
 ];
 
 const CITIES = [
@@ -258,11 +259,16 @@ async function main() {
     : SPECIALTIES;
 
   const cityArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
-  const targetCities = cityArgs.length > 0 ? cityArgs : CITIES;
-  console.log(`Processing ${targetCities.length} cities × ${targetSpecialties.length} specialties × up to 3 pages\n`);
+  const skipFlag = process.argv.find(a => a.startsWith("--skip-first="));
+  const skipFirst = skipFlag ? parseInt(skipFlag.split("=")[1]!, 10) : 0;
+  const allCities = cityArgs.length > 0 ? cityArgs : CITIES;
+  const targetCities = skipFirst > 0 ? allCities.slice(skipFirst) : allCities;
+  const cityOffset = skipFirst;
+  console.log(`Processing ${targetCities.length} cities × ${targetSpecialties.length} specialties × up to 3 pages${skipFirst > 0 ? ` (skipping first ${skipFirst})` : ""}\n`);
 
   for (const city of targetCities) {
-    console.log(`\n[${targetCities.indexOf(city) + 1}/${targetCities.length}] ${city}`);
+    const cityIdx = targetCities.indexOf(city) + 1 + cityOffset;
+    console.log(`\n[${cityIdx}/${allCities.length}] ${city}`);
     const count = await importCity(city, targetSpecialties);
     console.log(`  → ${count} new profiles imported from ${city} (running total: ${total + count})`);
     total += count;

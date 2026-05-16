@@ -1040,6 +1040,61 @@ import { fileURLToPath } from "node:url";
     }
   }
 
+export async function seedAutomotiveRepair(): Promise<void> {
+  const result = await db.execute<{ count: string }>(
+    sql`SELECT COUNT(*)::text AS count FROM technicians WHERE specialty = 'Automotive Repair'`
+  );
+  const count = parseInt(result.rows[0]?.count ?? "0", 10);
+  if (count >= 100) return;
+
+  console.log(`[seed] Automotive Repair has ${count} entries — seeding from automotive-repair-seed.json...`);
+
+  const seedPath = join(
+    typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url)),
+    "automotive-repair-seed.json"
+  );
+
+  type SeedRow = {
+    fullName: string; specialty: string; serviceArea: string; bio: string;
+    hourlyRate: string | number; latitude: number | null; longitude: number | null;
+    googlePlaceId: string; avatarUrl: string | null; phone: string | null; website: string | null;
+  };
+
+  let allRows: SeedRow[];
+  try {
+    allRows = JSON.parse(readFileSync(seedPath, "utf-8")) as SeedRow[];
+  } catch (e) {
+    console.error("[seed] Could not load automotive-repair-seed.json:", e);
+    return;
+  }
+
+  let inserted = 0;
+  for (let i = 0; i < allRows.length; i += 100) {
+    const chunk = allRows.slice(i, i + 100);
+    const res = await db.insert(techniciansTable).values(
+      chunk.map(r => ({
+        fullName: r.fullName,
+        avatarUrl: r.avatarUrl ?? undefined,
+        specialty: r.specialty ?? undefined,
+        specialties: r.specialty ? [r.specialty] : undefined,
+        serviceArea: r.serviceArea ?? undefined,
+        bio: r.bio ?? undefined,
+        hourlyRate: r.hourlyRate != null ? String(r.hourlyRate) : undefined,
+        googlePlaceId: r.googlePlaceId ?? undefined,
+        phone: r.phone ?? undefined,
+        website: r.website ?? undefined,
+        latitude: r.latitude ?? undefined,
+        longitude: r.longitude ?? undefined,
+        claimed: false,
+        claimRequestPending: false,
+      }))
+    ).onConflictDoNothing();
+    inserted += res.rowCount ?? 0;
+  }
+
+  console.log(`[seed] Inserted ${inserted} Automotive Repair profiles.`);
+}
+
 export async function seedAllTechnicians(): Promise<void> {
   const result = await db.execute<{ count: string }>(
     sql`SELECT COUNT(*)::text AS count FROM technicians`

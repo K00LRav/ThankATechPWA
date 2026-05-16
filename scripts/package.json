@@ -7,7 +7,8 @@
     "hello": "tsx ./src/hello.ts",
     "import-technicians": "tsx ./src/import-technicians.ts",
     "backfill-phone-website": "tsx ./src/backfill-phone-website.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "export-automotive-seed": "tsx ./src/export-automotive-seed.ts"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",

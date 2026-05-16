@@ -79,6 +79,7 @@ export const SPECIALTY_SLUGS: Record<string, string> = {
   "cleaning": "Cleaning",
   "roofing": "Roofing",
   "landscaping": "Landscaping",
+  "automotive-repair": "Automotive Repair",
 };
 
 export const ALL_CITIES = Object.entries(CITY_SLUGS);

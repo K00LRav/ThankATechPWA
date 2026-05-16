@@ -127,6 +127,10 @@ buildAll()
     path.resolve(artifactDir, "src/technicians-seed.json"),
     path.resolve(artifactDir, "dist/technicians-seed.json")
   ))
+  .then(() => copyFile(
+    path.resolve(artifactDir, "src/automotive-repair-seed.json"),
+    path.resolve(artifactDir, "dist/automotive-repair-seed.json")
+  ))
   .catch((err) => {
     console.error(err);
     process.exit(1);

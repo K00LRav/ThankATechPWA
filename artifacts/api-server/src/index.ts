@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./lib/stripeClient";
 import type Stripe from "stripe";
-import { seedTechniciansIfEmpty, seedAllTechnicians, removeDemoTechnicians, cleanupOrphanedTestData } from "./seed-technicians.js";
+import { seedTechniciansIfEmpty, seedAllTechnicians, seedAutomotiveRepair, removeDemoTechnicians, cleanupOrphanedTestData } from "./seed-technicians.js";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
@@ -119,6 +119,7 @@ app.listen(port, (err) => {
   ensureAdminUsers()
     .then(() => seedTechniciansIfEmpty())
     .then(() => seedAllTechnicians())
+    .then(() => seedAutomotiveRepair())
     .then(() => removeDemoTechnicians())
     .then(() => cleanupOrphanedTestData())
     .catch((e) => logger.error({ err: e }, "Technician seed/cleanup failed"));

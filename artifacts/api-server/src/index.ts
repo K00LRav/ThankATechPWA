@@ -90,7 +90,6 @@ async function initStripe() {
 }
 
 await initStripe();
-await seedTechniciansIfEmpty();
 
 app.listen(port, (err) => {
   if (err) {
@@ -99,4 +98,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Seed runs after the port is open so deployment health checks don't time out
+  seedTechniciansIfEmpty().catch((e) =>
+    logger.error({ err: e }, "Technician seed failed")
+  );
 });

@@ -223,7 +223,7 @@ export function TechnicianDashboard() {
       </style></head><body>
       <div class="card">
         <div class="left">
-          <div class="logo"><div class="logo-dot"></div><span class="logo-text">ThankATech</span></div>
+          <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="logo-text">ThankATech</span></div>
           <div class="name">${profile?.fullName ?? "Technician"}</div>
           <div class="tagline">Real thanks. Real tips. No ratings.</div>
         </div>
@@ -752,7 +752,7 @@ export function TechnicianDashboard() {
               <div className="flex-1 flex flex-col justify-between p-5">
                 {/* Logo */}
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-white/70 flex-shrink-0" />
+                  <Heart className="w-3.5 h-3.5 text-white flex-shrink-0" fill="white" />
                   <span className="font-bold text-xs tracking-wide text-white/90 uppercase">ThankATech</span>
                 </div>
                 {/* Name */}

@@ -11,6 +11,7 @@ const SPECIALTIES: { query: string; label: string }[] = [
   { query: "appliance repair", label: "Appliance Repair" },
   { query: "locksmith", label: "Locksmith" },
   { query: "pest control", label: "Pest Control" },
+  { query: "roofing contractor", label: "Roofing" },
 ];
 
 const CITIES = [
@@ -185,10 +186,10 @@ function buildBio(name: string, specialty: string, city: string): string {
   return bios[Math.floor(Math.random() * bios.length)];
 }
 
-async function importCity(city: string): Promise<number> {
+async function importCity(city: string, specialties: typeof SPECIALTIES): Promise<number> {
   let imported = 0;
 
-  for (const { query, label } of SPECIALTIES) {
+  for (const { query, label } of specialties) {
     console.log(`  Searching: ${query} in ${city}...`);
     const places = await searchPlaces(query, city, 3);
     console.log(`    Found ${places.length} results`);
@@ -245,12 +246,19 @@ async function main() {
   console.log("Starting expanded technician import from Google Maps Places API...\n");
   let total = 0;
 
-  const targetCities = process.argv.length > 2 ? process.argv.slice(2) : CITIES;
-  console.log(`Processing ${targetCities.length} cities × ${SPECIALTIES.length} specialties × up to 3 pages\n`);
+  const specialtyFlag = process.argv.find(a => a.startsWith("--specialty="));
+  const specialtyFilter = specialtyFlag ? specialtyFlag.split("=")[1]!.toLowerCase() : null;
+  const targetSpecialties = specialtyFilter
+    ? SPECIALTIES.filter(s => s.label.toLowerCase().includes(specialtyFilter))
+    : SPECIALTIES;
+
+  const cityArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
+  const targetCities = cityArgs.length > 0 ? cityArgs : CITIES;
+  console.log(`Processing ${targetCities.length} cities × ${targetSpecialties.length} specialties × up to 3 pages\n`);
 
   for (const city of targetCities) {
     console.log(`\n[${targetCities.indexOf(city) + 1}/${targetCities.length}] ${city}`);
-    const count = await importCity(city);
+    const count = await importCity(city, targetSpecialties);
     console.log(`  → ${count} new profiles imported from ${city} (running total: ${total + count})`);
     total += count;
     await new Promise((r) => setTimeout(r, 500));

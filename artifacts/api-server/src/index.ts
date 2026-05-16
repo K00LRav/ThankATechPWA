@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./lib/stripeClient";
 import type Stripe from "stripe";
-import { seedTechniciansIfEmpty } from "./seed-technicians.js";
+import { seedTechniciansIfEmpty, removeDemoTechnicians } from "./seed-technicians.js";
 
 const rawPort = process.env["PORT"];
 
@@ -99,8 +99,8 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // Seed runs after the port is open so deployment health checks don't time out
-  seedTechniciansIfEmpty().catch((e) =>
-    logger.error({ err: e }, "Technician seed failed")
-  );
+  // Seed and cleanup run after port opens so deployment health checks don't time out
+  seedTechniciansIfEmpty()
+    .then(() => removeDemoTechnicians())
+    .catch((e) => logger.error({ err: e }, "Technician seed/cleanup failed"));
 });

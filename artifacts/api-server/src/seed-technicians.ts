@@ -1015,4 +1015,13 @@ import { db, techniciansTable } from "@workspace/db";
     }
     console.log(`[seed] Done.`);
   }
+
+  export async function removeDemoTechnicians(): Promise<void> {
+    const result = await db.execute<{ count: string }>(
+      sql`DELETE FROM technicians WHERE google_place_id IS NULL RETURNING id`
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`[seed] Removed ${result.rowCount} demo technician(s).`);
+    }
+  }
   

@@ -12,6 +12,9 @@ const SPECIALTIES: { query: string; label: string }[] = [
   { query: "locksmith", label: "Locksmith" },
   { query: "pest control", label: "Pest Control" },
   { query: "roofing contractor", label: "Roofing" },
+  { query: "handyman service", label: "Handyman" },
+  { query: "house cleaning service", label: "Cleaning" },
+  { query: "landscaping contractor", label: "Landscaping" },
 ];
 
 const CITIES = [
@@ -247,9 +250,11 @@ async function main() {
   let total = 0;
 
   const specialtyFlag = process.argv.find(a => a.startsWith("--specialty="));
-  const specialtyFilter = specialtyFlag ? specialtyFlag.split("=")[1]!.toLowerCase() : null;
-  const targetSpecialties = specialtyFilter
-    ? SPECIALTIES.filter(s => s.label.toLowerCase().includes(specialtyFilter))
+  const specialtyFilters = specialtyFlag
+    ? specialtyFlag.split("=")[1]!.toLowerCase().split(",").map(s => s.trim())
+    : null;
+  const targetSpecialties = specialtyFilters
+    ? SPECIALTIES.filter(s => specialtyFilters.some(f => s.label.toLowerCase().includes(f)))
     : SPECIALTIES;
 
   const cityArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));

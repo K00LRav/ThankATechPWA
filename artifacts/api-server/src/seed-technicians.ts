@@ -1037,12 +1037,50 @@ import { db, techniciansTable } from "@workspace/db";
     }
   }
 
-  export async function removeDemoTechnicians(): Promise<void> {
-    const result = await db.execute<{ count: string }>(
-      sql`DELETE FROM technicians WHERE google_place_id IS NULL RETURNING id`
-    );
-    if (result.rowCount && result.rowCount > 0) {
-      console.log(`[seed] Removed ${result.rowCount} demo technician(s).`);
-    }
+export async function removeDemoTechnicians(): Promise<void> {
+  const result = await db.execute<{ count: string }>(
+    sql`DELETE FROM technicians WHERE google_place_id IS NULL RETURNING id`
+  );
+  if (result.rowCount && result.rowCount > 0) {
+    console.log(`[seed] Removed ${result.rowCount} demo technician(s).`);
   }
+}
+
+export async function cleanupOrphanedTestData(): Promise<void> {
+  // Remove thank_messages referencing technicians that no longer exist (demo techs)
+  const tm = await db.execute<{ count: string }>(
+    sql`DELETE FROM thank_messages
+        WHERE technician_id NOT IN (SELECT id FROM technicians)
+        RETURNING id`
+  );
+  if (tm.rowCount && tm.rowCount > 0) {
+    console.log(`[seed] Removed ${tm.rowCount} orphaned thank message(s).`);
+  }
+
+  // Remove jobs referencing technicians that no longer exist
+  const jb = await db.execute<{ count: string }>(
+    sql`DELETE FROM jobs
+        WHERE technician_id NOT IN (SELECT id FROM technicians)
+        RETURNING id`
+  );
+  if (jb.rowCount && jb.rowCount > 0) {
+    console.log(`[seed] Removed ${jb.rowCount} orphaned job(s).`);
+  }
+
+  // Clear any remaining test point data
+  await db.execute(sql`DELETE FROM point_transactions`);
+  await db.execute(sql`DELETE FROM points`);
+  await db.execute(sql`DELETE FROM guest_tips`);
+
+  // Reset technician counters to match real thank_messages
+  await db.execute(
+    sql`UPDATE technicians t
+        SET total_thanks = COALESCE((
+              SELECT COUNT(*) FROM thank_messages tm WHERE tm.technician_id = t.id
+            ), 0),
+            total_earned  = COALESCE((
+              SELECT SUM(tip_amount) FROM thank_messages tm WHERE tm.technician_id = t.id
+            ), 0)`
+  );
+}
   

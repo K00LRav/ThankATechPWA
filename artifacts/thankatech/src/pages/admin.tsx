@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Wrench, Briefcase, Heart, DollarSign, Trash2, ShieldCheck, Loader2, TrendingUp } from "lucide-react";
+import { Users, Wrench, Briefcase, Heart, DollarSign, Trash2, ShieldCheck, Loader2, TrendingUp, ClipboardList, Check, X, Phone, Mail, MapPin, ExternalLink } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -266,6 +266,148 @@ function ThanksTab() {
   );
 }
 
+// ─── Claim Requests Tab ───────────────────────────────────────────────────────
+function ClaimRequestsTab() {
+  const [claims, setClaims] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<number | null>(null);
+
+  useEffect(() => {
+    apiFetch("/api/admin/claim-requests").then(setClaims).finally(() => setLoading(false));
+  }, []);
+
+  async function approve(id: number) {
+    setActing(id);
+    try {
+      await apiFetch(`/api/admin/claim-requests/${id}/approve`, { method: "POST" });
+      setClaims(c => c.map(x => x.id === id ? { ...x, status: "approved" } : x));
+    } finally { setActing(null); }
+  }
+
+  async function reject(id: number) {
+    if (!confirm("Reject this claim request?")) return;
+    setActing(id);
+    try {
+      await apiFetch(`/api/admin/claim-requests/${id}/reject`, { method: "POST" });
+      setClaims(c => c.map(x => x.id === id ? { ...x, status: "rejected" } : x));
+    } finally { setActing(null); }
+  }
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>;
+
+  const pending = claims.filter(c => c.status === "pending");
+  const reviewed = claims.filter(c => c.status !== "pending");
+
+  const statusBadge = (status: string) => {
+    if (status === "approved") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><Check size={11} />Approved</span>;
+    if (status === "rejected") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><X size={11} />Rejected</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>;
+  };
+
+  const ClaimRow = ({ c, showActions }: { c: any; showActions: boolean }) => (
+    <div className="border rounded-xl p-5 space-y-4 bg-white hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-base">{c.claimantName}</span>
+            {statusBadge(c.status)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">Submitted {fmtDate(c.createdAt)}</p>
+        </div>
+        {showActions && (
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => approve(c.id)}
+              disabled={acting === c.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {acting === c.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              Approve
+            </button>
+            <button
+              onClick={() => reject(c.id)}
+              disabled={acting === c.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-destructive text-destructive text-xs font-medium hover:bg-destructive/5 disabled:opacity-50 transition-colors"
+            >
+              <X size={12} />
+              Reject
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Claimant</p>
+          <div className="flex items-center gap-2 text-sm">
+            <Mail size={13} className="text-muted-foreground shrink-0" />
+            <a href={`mailto:${c.claimantEmail}`} className="text-primary hover:underline truncate">{c.claimantEmail}</a>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Phone size={13} className="text-muted-foreground shrink-0" />
+            <a href={`tel:${c.claimantPhone}`} className="hover:underline">{c.claimantPhone}</a>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Profile Being Claimed</p>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Wrench size={13} className="text-muted-foreground shrink-0" />
+            <a href={`/technician/${c.technicianId}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+              {c.techName || `Technician #${c.technicianId}`}
+              <ExternalLink size={11} />
+            </a>
+          </div>
+          {c.techSpecialty && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="outline" className="text-xs">{c.techSpecialty}</Badge>
+            </div>
+          )}
+          {c.techServiceArea && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin size={13} className="shrink-0" />
+              <span className="truncate">{c.techServiceArea}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {claims.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <ClipboardList size={40} className="mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No claim requests yet</p>
+          <p className="text-sm">Requests will appear here when technicians submit them.</p>
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />
+            Pending Review
+            <span className="text-xs font-normal bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{pending.length}</span>
+          </h3>
+          {pending.map(c => <ClaimRow key={c.id} c={c} showActions={true} />)}
+        </div>
+      )}
+
+      {reviewed.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground/40 inline-block" />
+            Previously Reviewed
+            <span className="text-xs font-normal bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{reviewed.length}</span>
+          </h3>
+          {reviewed.map(c => <ClaimRow key={c.id} c={c} showActions={false} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 export function Admin() {
   const { user, isLoading: authLoading } = useAuth();
@@ -336,13 +478,22 @@ export function Admin() {
         )}
 
         {/* Tabs */}
-        <Tabs defaultValue="users">
+        <Tabs defaultValue="claims">
           <TabsList className="mb-6">
+            <TabsTrigger value="claims" className="flex items-center gap-2">
+              <ClipboardList size={15} />Claims
+              {stats?.pendingClaims > 0 && (
+                <span className="ml-0.5 bg-yellow-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  {stats.pendingClaims}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2"><Users size={15} />Users</TabsTrigger>
             <TabsTrigger value="technicians" className="flex items-center gap-2"><Wrench size={15} />Technicians</TabsTrigger>
             <TabsTrigger value="jobs" className="flex items-center gap-2"><Briefcase size={15} />Jobs</TabsTrigger>
             <TabsTrigger value="thanks" className="flex items-center gap-2"><Heart size={15} />Thanks & Tips</TabsTrigger>
           </TabsList>
+          <TabsContent value="claims"><ClaimRequestsTab /></TabsContent>
           <TabsContent value="users"><UsersTab /></TabsContent>
           <TabsContent value="technicians"><TechniciansTab /></TabsContent>
           <TabsContent value="jobs"><JobsTab /></TabsContent>

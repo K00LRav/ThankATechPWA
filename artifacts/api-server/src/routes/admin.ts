@@ -6,6 +6,7 @@ import {
   techniciansTable,
   jobsTable,
   thankMessagesTable,
+  claimRequestsTable,
 } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { adminMiddleware } from "../middlewares/adminMiddleware";
@@ -17,12 +18,13 @@ router.use("/admin", adminMiddleware);
 // GET /admin/stats — extended platform overview
 router.get("/admin/stats", async (req, res) => {
   try {
-    const [[userCount], [techCount], [jobCount], [thankCount], [tipSum]] = await Promise.all([
+    const [[userCount], [techCount], [jobCount], [thankCount], [tipSum], [pendingClaims]] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable),
       db.select({ count: sql<number>`count(*)::int` }).from(techniciansTable),
       db.select({ count: sql<number>`count(*)::int` }).from(jobsTable),
       db.select({ count: sql<number>`count(*)::int` }).from(thankMessagesTable),
       db.select({ total: sql<number>`coalesce(sum(tip_amount),0)::int` }).from(thankMessagesTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(claimRequestsTable).where(eq(claimRequestsTable.status, "pending")),
     ]);
     res.json({
       totalUsers: userCount.count,
@@ -30,6 +32,7 @@ router.get("/admin/stats", async (req, res) => {
       totalJobs: jobCount.count,
       totalThanks: thankCount.count,
       totalTipsAmount: tipSum.total,
+      pendingClaims: pendingClaims.count,
     });
   } catch (err) {
     req.log.error({ err }, "admin/stats error");

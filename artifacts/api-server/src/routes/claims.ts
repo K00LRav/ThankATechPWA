@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { claimRequestsTable, techniciansTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { adminMiddleware } from "../middlewares/adminMiddleware";
 
 const router = Router();
 
@@ -39,6 +40,8 @@ router.post("/technicians/:id/claim", async (req, res) => {
   req.log.info({ techId, email: claimantEmail }, "Claim request submitted");
   res.status(201).json({ ok: true });
 });
+
+router.use("/admin", adminMiddleware);
 
 router.get("/admin/claim-requests", async (req, res) => {
   const rows = await db

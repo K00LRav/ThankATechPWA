@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useGetTechnicianEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetTechnicianEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon, Download, CreditCard, Copy, Share2, Printer, Link2 } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon, Download, CreditCard, Copy, Printer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -198,30 +198,45 @@ export function TechnicianDashboard() {
   function printCard() {
     const card = cardRef.current;
     if (!card) return;
-    const win = window.open("", "_blank", "width=500,height=700");
+    const qrSvg = card.querySelector("svg")?.outerHTML ?? "";
+    const win = window.open("", "_blank", "width=800,height=500");
     if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>ThankATech Business Card</title>
+    win.document.write(`<!DOCTYPE html><html><head><title>ThankATech Business Card — ${profile?.fullName ?? "Technician"}</title>
       <style>
-        body { margin: 0; padding: 24px; font-family: Georgia, serif; background: #fff8f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; border: 2px solid #FF6B35; border-radius: 16px; padding: 32px 28px; text-align: center; width: 320px; }
-        .logo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
-        .logo-text { font-size: 20px; font-weight: 800; color: #2d2926; }
-        .logo-dot { width: 10px; height: 10px; background: #FF6B35; border-radius: 50%; }
-        .name { font-size: 22px; font-weight: 700; color: #2d2926; margin: 12px 0 4px; }
-        .tagline { font-size: 12px; color: #9c8f7e; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
-        .qr { background: white; padding: 12px; border: 1px solid #eee; border-radius: 12px; display: inline-block; margin-bottom: 16px; }
-        .scan { font-size: 12px; color: #6b5f53; margin-bottom: 8px; }
-        .url { font-size: 11px; color: #FF6B35; word-break: break-all; }
-        .footer { margin-top: 16px; font-size: 11px; color: #9c8f7e; font-style: italic; }
+        @page { size: 3.5in 2in landscape; margin: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { width: 3.5in; height: 2in; font-family: Arial, Helvetica, sans-serif; background: white; display: flex; align-items: stretch; }
+        .card { width: 3.5in; height: 2in; display: flex; background: white; border: 1px solid #e5e5e5; overflow: hidden; }
+        .left { flex: 1; padding: 0.2in 0.22in; display: flex; flex-direction: column; justify-content: space-between; border-right: 3px solid #FF6B35; }
+        .logo { display: flex; align-items: center; gap: 5px; }
+        .logo-dot { width: 9px; height: 9px; background: #FF6B35; border-radius: 50%; flex-shrink: 0; }
+        .logo-text { font-size: 11pt; font-weight: 800; color: #2d2926; letter-spacing: -0.3px; }
+        .mid { }
+        .name { font-size: 13.5pt; font-weight: 700; color: #2d2926; line-height: 1.1; margin-bottom: 3px; }
+        .specialty { font-size: 9pt; color: #FF6B35; font-weight: 600; margin-bottom: 2px; }
+        .area { font-size: 8.5pt; color: #6b5f53; }
+        .tagline { font-size: 7pt; color: #9c8f7e; font-style: italic; }
+        .right { width: 1.15in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06in; background: #fffaf7; padding: 0.12in 0.1in; }
+        .right svg { width: 0.85in; height: 0.85in; }
+        .scan { font-size: 6.5pt; color: #6b5f53; text-align: center; line-height: 1.3; }
+        .url { font-size: 5.5pt; color: #FF6B35; text-align: center; word-break: break-all; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
       </style></head><body>
       <div class="card">
-        <div class="logo"><div class="logo-dot"></div><span class="logo-text">ThankATech</span></div>
-        <div class="name">${profile?.fullName ?? "Technician"}</div>
-        <div class="tagline">Real thanks. Real tips. No ratings.</div>
-        ${card.querySelector("svg")?.outerHTML ?? ""}
-        <div class="scan">Scan to view my profile &amp; send thanks</div>
-        <div class="url">${profileUrl}</div>
-        <div class="footer">thankatech.com</div>
+        <div class="left">
+          <div class="logo"><div class="logo-dot"></div><span class="logo-text">ThankATech</span></div>
+          <div class="mid">
+            <div class="name">${profile?.fullName ?? "Technician"}</div>
+          </div>
+          <div class="tagline">Real thanks. Real tips. No ratings.</div>
+        </div>
+        <div class="right">
+          ${qrSvg}
+          <div class="scan">Scan to send<br>a thank you</div>
+          <div class="url">thankatech.com</div>
+        </div>
       </div></body></html>`);
     win.document.close();
     win.focus();
@@ -731,72 +746,57 @@ export function TechnicianDashboard() {
             <DialogTitle className="text-lg font-bold">Your Business Card</DialogTitle>
           </DialogHeader>
 
-          {/* The card itself */}
-          <div ref={cardRef} className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-secondary/5 p-6 text-center space-y-4">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="font-serif font-bold text-lg tracking-tight">ThankATech</span>
+          {/* Business card preview — landscape, 3.5 × 2 proportions */}
+          <div
+            ref={cardRef}
+            className="w-full rounded-xl border border-border shadow-md overflow-hidden bg-white"
+            style={{ aspectRatio: "3.5 / 2" }}
+          >
+            <div className="flex h-full">
+              {/* Left: identity */}
+              <div className="flex-1 flex flex-col justify-between p-5 border-r-4 border-primary">
+                {/* Logo */}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0" />
+                  <span className="font-bold text-sm tracking-tight text-foreground">ThankATech</span>
+                </div>
+                {/* Name */}
+                <div>
+                  <p className="font-bold text-xl leading-tight text-foreground">
+                    {profile?.fullName ?? "Technician"}
+                  </p>
+                </div>
+                {/* Tagline */}
+                <p className="text-[10px] text-muted-foreground italic">
+                  Real thanks. Real tips. No ratings.
+                </p>
+              </div>
+
+              {/* Right: QR */}
+              <div className="flex flex-col items-center justify-center gap-1.5 bg-[#fffaf7] px-4 py-3" style={{ width: "33%" }}>
+                <QRCode value={tipUrl} size={90} fgColor="#2d2926" />
+                <p className="text-[9px] text-muted-foreground text-center leading-tight">
+                  Scan to send<br />a thank you
+                </p>
+                <p className="text-[8px] text-primary font-medium text-center">thankatech.com</p>
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-xl text-foreground">{profile?.fullName ?? "Technician"}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Real thanks. Real tips. No ratings.</p>
-            </div>
-            <div className="bg-white p-3 rounded-xl border border-border inline-block mx-auto">
-              <QRCode value={tipUrl} size={140} fgColor="#2d2926" />
-            </div>
-            <p className="text-xs text-muted-foreground">Scan to send a thank you — no account needed</p>
-            <p className="text-xs font-medium text-primary break-all">{tipUrl}</p>
           </div>
+
+          <p className="text-xs text-center text-muted-foreground">
+            Print-ready for VistaPrint or any local print shop — standard 3.5" × 2"
+          </p>
 
           {/* Actions */}
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" className="rounded-full gap-2" onClick={copyProfileLink}>
               {linkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-              {linkCopied ? "Copied!" : "Copy link"}
+              {linkCopied ? "Copied!" : "Copy tip link"}
             </Button>
             <Button variant="outline" className="rounded-full gap-2" onClick={printCard}>
               <Printer className="w-4 h-4" />
               Print card
             </Button>
-          </div>
-
-          {/* Social sharing */}
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground text-center font-medium">Share your profile</p>
-            <div className="flex gap-2 justify-center flex-wrap">
-              <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Send me a thank you on ThankATech! ${profileUrl}`)}`}
-                target="_blank" rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
-                  <Share2 className="w-3.5 h-3.5" /> X / Twitter
-                </Button>
-              </a>
-              <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
-                target="_blank" rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
-                  <Share2 className="w-3.5 h-3.5" /> Facebook
-                </Button>
-              </a>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Check out my ThankATech profile and send me a thank you! ${profileUrl}`)}`}
-                target="_blank" rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
-                  <Share2 className="w-3.5 h-3.5" /> WhatsApp
-                </Button>
-              </a>
-              <a
-                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
-                target="_blank" rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
-                  <Link2 className="w-3.5 h-3.5" /> LinkedIn
-                </Button>
-              </a>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

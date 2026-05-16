@@ -26,7 +26,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard } from "lucide-react";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -41,6 +41,7 @@ export function TechnicianProfile() {
   const { data: thanks, isLoading: isThanksLoading } = useGetTechnicianWallOfThanks(id, { query: { enabled: !!id, queryKey: getGetTechnicianWallOfThanksQueryKey(id) }});
   const { data: profileEnvelope, isLoading: isProfileLoading } = useMyProfile();
 
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStep, setDialogStep] = useState<DialogStep>("form");
   const [title, setTitle] = useState("");
@@ -78,6 +79,15 @@ export function TechnicianProfile() {
   const profile = profileEnvelope?.profile;
   const isCustomer = profile?.userType === "customer";
   const profileSettled = !isProfileLoading;
+
+  const profileUrl = `https://www.thankatech.com/technician/${id}`;
+
+  function copyShareLink() {
+    navigator.clipboard.writeText(profileUrl).then(() => {
+      setShareLinkCopied(true);
+      setTimeout(() => setShareLinkCopied(false), 2000);
+    });
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -139,6 +149,46 @@ export function TechnicianProfile() {
                   </Button>
                 </Link>
               )}
+
+              {/* Share profile */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground font-medium">Share:</span>
+                <button
+                  onClick={copyShareLink}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
+                >
+                  {shareLinkCopied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                  {shareLinkCopied ? "Copied!" : "Copy link"}
+                </button>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
+                >
+                  <Share2 size={12} /> X
+                </a>
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
+                >
+                  <Share2 size={12} /> Facebook
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Check out ${tech.fullName} on ThankATech! ${profileUrl}`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
+                >
+                  <Share2 size={12} /> WhatsApp
+                </a>
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-background/70 border border-border hover:bg-background transition-colors"
+                >
+                  <Share2 size={12} /> LinkedIn
+                </a>
+              </div>
             </div>
           </div>
         </div>

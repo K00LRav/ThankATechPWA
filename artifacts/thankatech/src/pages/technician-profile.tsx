@@ -295,21 +295,11 @@ export function TechnicianProfile() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Flag size={18} className="text-amber-600 shrink-0" />
-              <p className="text-sm text-amber-800 font-medium">
-                {user ? "Is this your business? Claim this profile to manage it." : "Is this your business? Sign in to claim this profile."}
-              </p>
+              <p className="text-sm text-amber-800 font-medium">Is this your business? Claim this profile to manage it.</p>
             </div>
-            {user ? (
-              <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={() => setClaimDialogOpen(true)}>
-                Claim profile
-              </Button>
-            ) : (
-              <a href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/auth/login`}>
-                <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
-                  Sign in to claim
-                </Button>
-              </a>
-            )}
+            <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={() => setClaimDialogOpen(true)}>
+              Claim profile
+            </Button>
           </div>
         )}
         {tech.claimRequestPending && (
@@ -549,18 +539,34 @@ export function TechnicianProfile() {
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Claim this profile</DialogTitle>
             <DialogDescription>
-              {claimDone
-                ? "We've received your request and will review it shortly."
-                : `Is "${tech.fullName}" your business? Submit your details and we'll verify and hand over the profile.`}
+              {!user
+                ? "You need to be signed in to claim a profile."
+                : claimDone
+                  ? "We've received your request and will review it shortly."
+                  : `Is "${tech.fullName}" your business? Verify your details and we'll hand over the profile.`}
             </DialogDescription>
           </DialogHeader>
 
-          {claimDone ? (
+          {!user ? (
+            <div className="flex flex-col items-center gap-4 py-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                <Flag className="w-7 h-7 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">Sign in to continue</p>
+                <p className="text-muted-foreground text-sm mt-1">Your account lets us verify you're the real owner and link the profile to your login.</p>
+              </div>
+              <a href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/auth/login`} className="w-full">
+                <Button className="w-full mt-1">Sign in with Replit</Button>
+              </a>
+              <Button variant="ghost" size="sm" onClick={() => setClaimDialogOpen(false)}>Maybe later</Button>
+            </div>
+          ) : claimDone ? (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
               <CheckCircle className="w-14 h-14 text-secondary" strokeWidth={1.5} />
               <div>
                 <p className="font-semibold text-lg">Request received!</p>
-                <p className="text-muted-foreground text-sm mt-1">We'll reach out to you within 1–2 business days to verify ownership.</p>
+                <p className="text-muted-foreground text-sm mt-1">We'll review your request and activate your dashboard access within 1–2 business days.</p>
               </div>
               <Button className="mt-2" onClick={() => setClaimDialogOpen(false)}>Close</Button>
             </div>

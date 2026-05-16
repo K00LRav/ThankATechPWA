@@ -30,7 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check, Flag, Phone, Globe } from "lucide-react";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check, Flag, Phone, Globe, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -177,7 +177,18 @@ export function TechnicianProfile() {
       {tech.avatarUrl && <meta property="og:image" content={tech.avatarUrl} />}
     </Helmet>
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 pb-16">
-      <div className="bg-primary/10 pt-16 pb-24 px-4">
+      <div className="px-4 pt-4 pb-0">
+        <div className="container mx-auto max-w-4xl">
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Back to results
+          </button>
+        </div>
+      </div>
+      <div className="bg-primary/10 pt-10 pb-24 px-4">
         <div className="container mx-auto max-w-4xl">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8 text-center md:text-left">
             <TechAvatar

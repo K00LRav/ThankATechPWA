@@ -2,10 +2,9 @@ import { useState, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { Helmet } from "react-helmet-async";
 import { useListTechnicians } from "@workspace/api-client-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Heart, Wrench, ChevronRight, Navigation, Loader2 } from "lucide-react";
-import { TechAvatar } from "@/components/TechAvatar";
+import { ChevronRight, Navigation, Loader2, ChevronDown } from "lucide-react";
+import { SwipeDeck } from "@/components/SwipeDeck";
 import {
   CITY_SLUGS,
   SPECIALTY_SLUGS,
@@ -19,12 +18,66 @@ import {
   SITE_NAME,
 } from "@/lib/seo";
 
-interface TechGridProps {
-  search?: string;
-  city?: string;
+const FEATURED_CITY_SLUGS = new Set([
+  "new-york-city", "los-angeles", "chicago", "houston", "miami",
+  "dallas", "atlanta", "phoenix", "seattle", "boston", "denver", "las-vegas",
+]);
+
+function CityFilterList({
+  specialtySlug,
+  currentCitySlug,
+}: {
+  specialtySlug: string;
+  currentCitySlug?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const featured = ALL_CITIES.filter(([s]) => FEATURED_CITY_SLUGS.has(s) && s !== currentCitySlug);
+  const others = ALL_CITIES.filter(([s]) => !FEATURED_CITY_SLUGS.has(s) && s !== currentCitySlug);
+  const href = (slug: string) =>
+    specialtySlug ? `/browse/city/${slug}/${specialtySlug}` : `/browse/city/${slug}`;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+        {featured.map(([slug, name]) => (
+          <Link key={slug} href={href(slug)}>
+            <div className="flex items-center justify-center text-center px-3 py-2.5 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer">
+              <span className="text-sm font-medium leading-tight">{name}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+      {expanded && (
+        <div className="flex flex-wrap gap-1.5 justify-center pt-1">
+          {others.map(([slug, name]) => (
+            <Link key={slug} href={href(slug)}>
+              <Button variant="ghost" size="sm" className="rounded-full h-7 text-xs text-muted-foreground hover:text-foreground">{name}</Button>
+            </Link>
+          ))}
+        </div>
+      )}
+      {others.length > 0 && (
+        <div className="text-center">
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronDown size={14} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+            {expanded ? "Show less" : `${others.length} more cities`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function TechGrid({ search, city }: TechGridProps) {
+interface TechDeckProps {
+  search?: string;
+  city?: string;
+  storageKey: string;
+}
+
+function TechDeck({ search, city, storageKey }: TechDeckProps) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -60,47 +113,32 @@ function TechGrid({ search, city }: TechGridProps) {
   }, []);
 
   const filtered = city && !userLocation
-    ? technicians?.filter((t) =>
-        t.serviceArea.toLowerCase().includes(city.toLowerCase())
-      )
+    ? technicians?.filter((t) => t.serviceArea.toLowerCase().includes(city.toLowerCase()))
     : technicians;
 
+  const deckKey = `${storageKey}:${userLocation ? "near" : ""}`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col items-center gap-2">
         {userLocation ? (
-          <Button
-            variant="outline"
-            className="h-10 rounded-full px-5 gap-2 border-primary text-primary hover:bg-primary/5"
-            onClick={handleClearLocation}
-          >
+          <Button variant="outline" className="h-10 rounded-full px-5 gap-2 border-primary text-primary hover:bg-primary/5" onClick={handleClearLocation}>
             <Navigation size={15} className="fill-primary" />
             Near me — active
           </Button>
         ) : (
-          <Button
-            variant="outline"
-            className="h-10 rounded-full px-5 gap-2"
-            onClick={handleNearMe}
-            disabled={locating}
-          >
+          <Button variant="outline" className="h-10 rounded-full px-5 gap-2" onClick={handleNearMe} disabled={locating}>
             {locating ? <Loader2 size={15} className="animate-spin" /> : <Navigation size={15} />}
             {locating ? "Finding your location…" : "Sort by nearest to me"}
           </Button>
         )}
-        {locationError && (
-          <p className="text-sm text-destructive text-center">{locationError}</p>
-        )}
-        {userLocation && (
-          <p className="text-sm text-muted-foreground">Sorted by distance from your location</p>
-        )}
+        {locationError && <p className="text-sm text-destructive text-center">{locationError}</p>}
+        {userLocation && <p className="text-sm text-muted-foreground">Sorted by distance from your location</p>}
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-52 bg-card animate-pulse rounded-xl" />
-          ))}
+        <div className="flex justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-muted-foreground" />
         </div>
       ) : !filtered?.length ? (
         <div className="text-center py-16 text-muted-foreground">
@@ -110,43 +148,7 @@ function TechGrid({ search, city }: TechGridProps) {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((tech) => (
-            <Card key={tech.id} className="overflow-hidden hover:shadow-md transition-all group border-primary/5">
-              <CardContent className="p-0">
-                <div className="p-6 space-y-4">
-                  <div className="flex items-start gap-4">
-                    <TechAvatar avatarUrl={tech.avatarUrl} fullName={tech.fullName} specialty={tech.specialty} className="w-14 h-14" iconSize={22} />
-                    <div className="flex-1 space-y-1">
-                      <h3 className="font-serif font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.fullName}</h3>
-                      <p className="text-sm font-medium text-secondary flex items-center gap-1"><Wrench size={13} />{tech.specialty}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5 text-sm text-muted-foreground pt-3 border-t">
-                    <p className="flex items-center gap-2">
-                      <MapPin size={14} />
-                      <span>{tech.serviceArea}</span>
-                      {tech.distanceMiles !== null && tech.distanceMiles !== undefined && (
-                        <span className="ml-auto font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full text-xs">
-                          {tech.distanceMiles} mi
-                        </span>
-                      )}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Heart size={14} className="text-primary" />
-                      <span className="font-medium text-foreground">{tech.totalThanks}</span> Thanks received
-                    </p>
-                  </div>
-                </div>
-                <div className="p-4 bg-muted/30 border-t">
-                  <Button asChild className="w-full rounded-full bg-white dark:bg-black" variant="outline">
-                    <Link href={`/technician/${tech.id}`}>View Profile</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <SwipeDeck key={deckKey} techs={filtered} storageKey={deckKey} />
       )}
     </div>
   );
@@ -170,7 +172,7 @@ export function CityLandingPage() {
       </Helmet>
 
       <div className="min-h-[calc(100dvh-4rem)] bg-muted/20 py-12 px-4">
-        <div className="container mx-auto max-w-6xl space-y-10">
+        <div className="container mx-auto max-w-3xl space-y-10">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <p className="text-sm font-medium text-primary uppercase tracking-wider">Local Technicians</p>
             <h1 className="text-4xl md:text-5xl font-serif font-bold">Trusted Technicians in {cityName}</h1>
@@ -179,27 +181,22 @@ export function CityLandingPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-center">
-            {ALL_SPECIALTIES.map(([slug, label]) => (
-              <Link key={slug} href={`/browse/city/${citySlug}/${slug}`}>
-                <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
-              </Link>
-            ))}
-          </div>
-
-          <TechGrid city={cityName} />
-
-          <div className="pt-8 border-t">
-            <h2 className="text-xl font-serif font-semibold mb-4 text-center">Browse technicians in other cities</h2>
-            <div className="flex flex-wrap gap-3 justify-center">
-              {ALL_CITIES.filter(([slug]) => slug !== citySlug).map(([slug, name]) => (
-                <Link key={slug} href={`/browse/city/${slug}`}>
-                  <Button variant="ghost" size="sm" className="rounded-full gap-1">
-                    {name} <ChevronRight size={12} />
-                  </Button>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-center text-muted-foreground">Filter by specialty</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {ALL_SPECIALTIES.map(([slug, label]) => (
+                <Link key={slug} href={`/browse/city/${citySlug}/${slug}`}>
+                  <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
                 </Link>
               ))}
             </div>
+          </div>
+
+          <TechDeck city={cityName} storageKey={`city:${citySlug}`} />
+
+          <div className="pt-8 border-t space-y-4">
+            <h2 className="text-xl font-serif font-semibold text-center">Browse other cities</h2>
+            <CityFilterList specialtySlug="" currentCitySlug={citySlug} />
           </div>
         </div>
       </div>
@@ -225,7 +222,7 @@ export function SpecialtyLandingPage() {
       </Helmet>
 
       <div className="min-h-[calc(100dvh-4rem)] bg-muted/20 py-12 px-4">
-        <div className="container mx-auto max-w-6xl space-y-10">
+        <div className="container mx-auto max-w-3xl space-y-10">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <p className="text-sm font-medium text-primary uppercase tracking-wider">{specialtyName} Specialists</p>
             <h1 className="text-4xl md:text-5xl font-serif font-bold">{specialtyName} Technicians</h1>
@@ -234,18 +231,15 @@ export function SpecialtyLandingPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-center">
-            {ALL_CITIES.map(([slug, name]) => (
-              <Link key={slug} href={`/browse/city/${slug}/${specialtySlug}`}>
-                <Button variant="outline" size="sm" className="rounded-full">{name}</Button>
-              </Link>
-            ))}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-center text-muted-foreground">Browse by city</p>
+            <CityFilterList specialtySlug={specialtySlug} />
           </div>
 
-          <TechGrid search={specialtyName} />
+          <TechDeck search={specialtyName} storageKey={`specialty:${specialtySlug}`} />
 
-          <div className="pt-8 border-t">
-            <h2 className="text-xl font-serif font-semibold mb-4 text-center">Browse other specialties</h2>
+          <div className="pt-8 border-t space-y-3">
+            <h2 className="text-xl font-serif font-semibold text-center">Browse other specialties</h2>
             <div className="flex flex-wrap gap-3 justify-center">
               {ALL_SPECIALTIES.filter(([slug]) => slug !== specialtySlug).map(([slug, label]) => (
                 <Link key={slug} href={`/browse/specialty/${slug}`}>
@@ -282,7 +276,7 @@ export function CitySpecialtyLandingPage() {
       </Helmet>
 
       <div className="min-h-[calc(100dvh-4rem)] bg-muted/20 py-12 px-4">
-        <div className="container mx-auto max-w-6xl space-y-10">
+        <div className="container mx-auto max-w-3xl space-y-10">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <p className="text-sm font-medium text-primary uppercase tracking-wider">{specialtyName} · {cityName}</p>
             <h1 className="text-4xl md:text-5xl font-serif font-bold">{specialtyName} Technicians in {cityName}</h1>
@@ -291,15 +285,18 @@ export function CitySpecialtyLandingPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-center">
-            {ALL_SPECIALTIES.filter(([slug]) => slug !== specialtySlug).map(([slug, label]) => (
-              <Link key={slug} href={`/browse/city/${citySlug}/${slug}`}>
-                <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
-              </Link>
-            ))}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-center text-muted-foreground">Switch specialty</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {ALL_SPECIALTIES.filter(([slug]) => slug !== specialtySlug).map(([slug, label]) => (
+                <Link key={slug} href={`/browse/city/${citySlug}/${slug}`}>
+                  <Button variant="outline" size="sm" className="rounded-full">{label}</Button>
+                </Link>
+              ))}
+            </div>
           </div>
 
-          <TechGrid search={specialtyName} city={cityName} />
+          <TechDeck search={specialtyName} city={cityName} storageKey={`city-specialty:${citySlug}:${specialtySlug}`} />
 
           <div className="flex flex-wrap gap-3 justify-center pt-4">
             <Link href={`/browse/city/${citySlug}`}>

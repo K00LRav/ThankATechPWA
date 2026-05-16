@@ -47,6 +47,37 @@ const CITIES = [
   "New Orleans, LA",
   "Cleveland, OH",
   "San Jose, CA",
+  // Expanded cities
+  "Baltimore, MD",
+  "Louisville, KY",
+  "Memphis, TN",
+  "Richmond, VA",
+  "Oklahoma City, OK",
+  "Tucson, AZ",
+  "Fresno, CA",
+  "Albuquerque, NM",
+  "Omaha, NE",
+  "Tulsa, OK",
+  "Bakersfield, CA",
+  "Aurora, CO",
+  "Anaheim, CA",
+  "Santa Ana, CA",
+  "Corpus Christi, TX",
+  "Riverside, CA",
+  "St. Louis, MO",
+  "Lexington, KY",
+  "Cincinnati, OH",
+  "Stockton, CA",
+  "Greensboro, NC",
+  "Anchorage, AK",
+  "Newark, NJ",
+  "Plano, TX",
+  "Henderson, NV",
+  "Fort Worth, TX",
+  "Jacksonville, FL",
+  "Virginia Beach, VA",
+  "Colorado Springs, CO",
+  "Salt Lake City, UT",
 ];
 
 interface PlacePhoto {
@@ -91,19 +122,43 @@ async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails> {
   return data.result ?? {};
 }
 
-async function searchPlaces(query: string, location: string): Promise<PlaceResult[]> {
+async function searchPlacesPage(query: string, location: string, pageToken?: string): Promise<TextSearchResponse> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-  url.searchParams.set("query", `${query} in ${location}`);
+  if (pageToken) {
+    url.searchParams.set("pagetoken", pageToken);
+  } else {
+    url.searchParams.set("query", `${query} in ${location}`);
+  }
   url.searchParams.set("key", GOOGLE_MAPS_API_KEY!);
 
   const resp = await fetch(url.toString());
-  const data = (await resp.json()) as TextSearchResponse;
+  return (await resp.json()) as TextSearchResponse;
+}
 
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    console.error(`Places API error: ${data.status} for query "${query} in ${location}"`);
-    return [];
+async function searchPlaces(query: string, location: string, maxPages = 3): Promise<PlaceResult[]> {
+  const all: PlaceResult[] = [];
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    if (page > 0) {
+      // Google requires a short delay before using next_page_token
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+
+    const data = await searchPlacesPage(query, location, pageToken);
+
+    if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      console.error(`  Places API error: ${data.status} for "${query} in ${location}" page ${page + 1}`);
+      break;
+    }
+
+    all.push(...(data.results ?? []));
+    pageToken = data.next_page_token;
+
+    if (!pageToken) break;
   }
-  return data.results ?? [];
+
+  return all;
 }
 
 function cityShortName(city: string): string {
@@ -135,16 +190,16 @@ async function importCity(city: string): Promise<number> {
 
   for (const { query, label } of SPECIALTIES) {
     console.log(`  Searching: ${query} in ${city}...`);
-    const places = await searchPlaces(query, city);
+    const places = await searchPlaces(query, city, 3);
+    console.log(`    Found ${places.length} results`);
 
-    for (const place of places.slice(0, 5)) {
+    for (const place of places) {
       const existing = await db
         .select({ id: techniciansTable.id })
         .from(techniciansTable)
         .where(eq(techniciansTable.googlePlaceId, place.place_id));
 
       if (existing.length > 0) {
-        console.log(`    Skipping duplicate: ${place.name}`);
         continue;
       }
 
@@ -173,34 +228,35 @@ async function importCity(city: string): Promise<number> {
         claimRequestPending: false,
       });
 
-      const photoStatus = avatarUrl ? "📷 with photo" : "no photo";
-      const phoneStatus = details.formatted_phone_number ? "📞" : "";
+      const photoStatus = avatarUrl ? "📷" : "  ";
+      const phoneStatus = details.formatted_phone_number ? "📞" : "  ";
       const webStatus = details.website ? "🌐" : "";
-      console.log(`    ✓ ${place.name} (${label}) [${photoStatus}] ${phoneStatus}${webStatus}`);
+      console.log(`    ✓ ${place.name} (${label}) ${photoStatus}${phoneStatus}${webStatus}`);
       imported++;
     }
 
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 500));
   }
 
   return imported;
 }
 
 async function main() {
-  console.log("Starting technician import from Google Maps Places API...\n");
+  console.log("Starting expanded technician import from Google Maps Places API...\n");
   let total = 0;
 
   const targetCities = process.argv.length > 2 ? process.argv.slice(2) : CITIES;
+  console.log(`Processing ${targetCities.length} cities × ${SPECIALTIES.length} specialties × up to 3 pages\n`);
 
   for (const city of targetCities) {
-    console.log(`\nProcessing: ${city}`);
+    console.log(`\n[${targetCities.indexOf(city) + 1}/${targetCities.length}] ${city}`);
     const count = await importCity(city);
-    console.log(`  → ${count} new profiles from ${city}`);
+    console.log(`  → ${count} new profiles imported from ${city} (running total: ${total + count})`);
     total += count;
     await new Promise((r) => setTimeout(r, 500));
   }
 
-  console.log(`\nDone. Total imported: ${total} technician profiles`);
+  console.log(`\nDone. Total imported: ${total} new technician profiles`);
   process.exit(0);
 }
 

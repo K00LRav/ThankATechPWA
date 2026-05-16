@@ -22,6 +22,31 @@ const CITIES = [
   "Philadelphia, PA",
   "San Antonio, TX",
   "San Diego, CA",
+  "Dallas, TX",
+  "Miami, FL",
+  "Atlanta, GA",
+  "Seattle, WA",
+  "Denver, CO",
+  "Boston, MA",
+  "Minneapolis, MN",
+  "Austin, TX",
+  "Las Vegas, NV",
+  "Nashville, TN",
+  "Tampa, FL",
+  "Orlando, FL",
+  "Charlotte, NC",
+  "Pittsburgh, PA",
+  "Columbus, OH",
+  "Indianapolis, IN",
+  "Kansas City, MO",
+  "San Francisco, CA",
+  "Portland, OR",
+  "Raleigh, NC",
+  "Sacramento, CA",
+  "Detroit, MI",
+  "New Orleans, LA",
+  "Cleveland, OH",
+  "San Jose, CA",
 ];
 
 interface PlacePhoto {
@@ -165,7 +190,7 @@ async function main() {
   console.log("Starting technician import from Google Maps Places API...\n");
   let total = 0;
 
-  const targetCities = process.argv[2] ? [process.argv[2]] : CITIES;
+  const targetCities = process.argv.length > 2 ? process.argv.slice(2) : CITIES;
 
   for (const city of targetCities) {
     console.log(`\nProcessing: ${city}`);

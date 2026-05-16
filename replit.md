@@ -84,6 +84,13 @@ _Populate as needed._
 - Auth tables (`sessions`, `users`) are mandatory — do not drop them
 - Stripe webhook: `stripe-replit-sync` does NOT register `account.updated` in the enabled events list. `initStripe()` in `artifacts/api-server/src/index.ts` detects this at startup and automatically updates the Stripe webhook endpoint to add any missing required events. No manual Stripe dashboard config is needed.
 
+## GitHub
+
+- Repo: `https://github.com/K00LRav/PWAThankATech` (primary mirror)
+- Also mirrored to: `https://github.com/K00LRav/ThankATechPWA`
+- Last verified push: HEAD `39c4032` on `main` (May 16 2026)
+- Note: rotate any PAT used for the push via GitHub → Settings → Developer Settings → Personal Access Tokens
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

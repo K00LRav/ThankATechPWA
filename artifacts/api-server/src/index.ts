@@ -4,6 +4,22 @@ import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./lib/stripeClient";
 import type Stripe from "stripe";
 import { seedTechniciansIfEmpty, seedAllTechnicians, removeDemoTechnicians, cleanupOrphanedTestData } from "./seed-technicians.js";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+const ADMIN_EMAILS = ["k00lrav@gmail.com"];
+
+async function ensureAdminUsers() {
+  for (const email of ADMIN_EMAILS) {
+    const result = await db
+      .update(usersTable)
+      .set({ isAdmin: true })
+      .where(eq(usersTable.email, email));
+    if (result.rowCount) {
+      logger.info({ email }, "Granted admin access");
+    }
+  }
+}
 
 const rawPort = process.env["PORT"];
 
@@ -100,7 +116,8 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 
   // Seed and cleanup run after port opens so deployment health checks don't time out
-  seedTechniciansIfEmpty()
+  ensureAdminUsers()
+    .then(() => seedTechniciansIfEmpty())
     .then(() => seedAllTechnicians())
     .then(() => removeDemoTechnicians())
     .then(() => cleanupOrphanedTestData())

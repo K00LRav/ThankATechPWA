@@ -205,21 +205,18 @@ export function TechnicianDashboard() {
       <style>
         @page { size: 3.5in 2in landscape; margin: 0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { width: 3.5in; height: 2in; font-family: Arial, Helvetica, sans-serif; background: white; display: flex; align-items: stretch; }
-        .card { width: 3.5in; height: 2in; display: flex; background: white; border: 1px solid #e5e5e5; overflow: hidden; }
-        .left { flex: 1; padding: 0.2in 0.22in; display: flex; flex-direction: column; justify-content: space-between; border-right: 3px solid #FF6B35; }
+        body { width: 3.5in; height: 2in; font-family: Arial, Helvetica, sans-serif; background: #FF6B35; display: flex; align-items: stretch; }
+        .card { width: 3.5in; height: 2in; display: flex; background: #FF6B35; overflow: hidden; border-radius: 6px; }
+        .left { flex: 1; padding: 0.2in 0.22in; display: flex; flex-direction: column; justify-content: space-between; }
         .logo { display: flex; align-items: center; gap: 5px; }
-        .logo-dot { width: 9px; height: 9px; background: #FF6B35; border-radius: 50%; flex-shrink: 0; }
-        .logo-text { font-size: 11pt; font-weight: 800; color: #2d2926; letter-spacing: -0.3px; }
-        .mid { }
-        .name { font-size: 13.5pt; font-weight: 700; color: #2d2926; line-height: 1.1; margin-bottom: 3px; }
-        .specialty { font-size: 9pt; color: #FF6B35; font-weight: 600; margin-bottom: 2px; }
-        .area { font-size: 8.5pt; color: #6b5f53; }
-        .tagline { font-size: 7pt; color: #9c8f7e; font-style: italic; }
-        .right { width: 1.15in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06in; background: #fffaf7; padding: 0.12in 0.1in; }
-        .right svg { width: 0.85in; height: 0.85in; }
-        .scan { font-size: 6.5pt; color: #6b5f53; text-align: center; line-height: 1.3; }
-        .url { font-size: 5.5pt; color: #FF6B35; text-align: center; word-break: break-all; }
+        .logo-dot { width: 7px; height: 7px; background: rgba(255,255,255,0.7); border-radius: 50%; flex-shrink: 0; }
+        .logo-text { font-size: 8pt; font-weight: 800; color: rgba(255,255,255,0.9); letter-spacing: 1px; text-transform: uppercase; }
+        .name { font-size: 16pt; font-weight: 700; color: white; line-height: 1.1; }
+        .tagline { font-size: 6.5pt; color: rgba(255,255,255,0.65); font-style: italic; letter-spacing: 0.3px; }
+        .right { width: 1.2in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06in; background: white; border-radius: 14px 0 0 14px; padding: 0.12in 0.1in; }
+        .right svg { width: 0.83in; height: 0.83in; }
+        .scan { font-size: 6pt; color: #6b5f53; text-align: center; line-height: 1.35; }
+        .url { font-size: 5.5pt; color: #FF6B35; font-weight: 600; text-align: center; }
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
@@ -227,9 +224,7 @@ export function TechnicianDashboard() {
       <div class="card">
         <div class="left">
           <div class="logo"><div class="logo-dot"></div><span class="logo-text">ThankATech</span></div>
-          <div class="mid">
-            <div class="name">${profile?.fullName ?? "Technician"}</div>
-          </div>
+          <div class="name">${profile?.fullName ?? "Technician"}</div>
           <div class="tagline">Real thanks. Real tips. No ratings.</div>
         </div>
         <div class="right">
@@ -749,36 +744,36 @@ export function TechnicianDashboard() {
           {/* Business card preview — landscape, 3.5 × 2 proportions */}
           <div
             ref={cardRef}
-            className="w-full rounded-xl border border-border shadow-md overflow-hidden bg-white"
-            style={{ aspectRatio: "3.5 / 2" }}
+            className="w-full rounded-xl shadow-lg overflow-hidden"
+            style={{ aspectRatio: "3.5 / 2", background: "#FF6B35" }}
           >
             <div className="flex h-full">
               {/* Left: identity */}
-              <div className="flex-1 flex flex-col justify-between p-5 border-r-4 border-primary">
+              <div className="flex-1 flex flex-col justify-between p-5">
                 {/* Logo */}
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0" />
-                  <span className="font-bold text-sm tracking-tight text-foreground">ThankATech</span>
+                  <div className="w-2 h-2 rounded-full bg-white/70 flex-shrink-0" />
+                  <span className="font-bold text-xs tracking-wide text-white/90 uppercase">ThankATech</span>
                 </div>
                 {/* Name */}
                 <div>
-                  <p className="font-bold text-xl leading-tight text-foreground">
+                  <p className="font-bold text-2xl leading-tight text-white drop-shadow-sm">
                     {profile?.fullName ?? "Technician"}
                   </p>
                 </div>
                 {/* Tagline */}
-                <p className="text-[10px] text-muted-foreground italic">
+                <p className="text-[9px] text-white/70 italic tracking-wide">
                   Real thanks. Real tips. No ratings.
                 </p>
               </div>
 
-              {/* Right: QR */}
-              <div className="flex flex-col items-center justify-center gap-1.5 bg-[#fffaf7] px-4 py-3" style={{ width: "33%" }}>
-                <QRCode value={tipUrl} size={90} fgColor="#2d2926" />
-                <p className="text-[9px] text-muted-foreground text-center leading-tight">
+              {/* Right: QR — white panel */}
+              <div className="flex flex-col items-center justify-center gap-1.5 bg-white px-4 py-3 rounded-l-2xl" style={{ width: "34%" }}>
+                <QRCode value={tipUrl} size={88} fgColor="#2d2926" />
+                <p className="text-[8px] text-gray-500 text-center leading-tight">
                   Scan to send<br />a thank you
                 </p>
-                <p className="text-[8px] text-primary font-medium text-center">thankatech.com</p>
+                <p className="text-[7px] text-[#FF6B35] font-semibold text-center">thankatech.com</p>
               </div>
             </div>
           </div>

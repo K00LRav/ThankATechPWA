@@ -33,5 +33,9 @@ export interface Technician {
   claimRequestPending?: boolean;
   /** @nullable */
   googlePlaceId?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  website?: string | null;
   createdAt?: string;
 }

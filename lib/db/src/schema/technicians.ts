@@ -23,6 +23,8 @@ export const techniciansTable = pgTable("technicians", {
   claimed: boolean("claimed").notNull().default(false),
   claimedByUserId: varchar("claimed_by_user_id"),
   googlePlaceId: varchar("google_place_id"),
+  phone: varchar("phone"),
+  website: text("website"),
   claimRequestPending: boolean("claim_request_pending").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

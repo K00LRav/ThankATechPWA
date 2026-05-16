@@ -267,6 +267,8 @@ function formatTechnician(
     totalThanks: t.totalThanks,
     totalEarned: parseFloat(t.totalEarned ?? "0"),
     distanceMiles,
+    phone: t.phone ?? null,
+    website: t.website ?? null,
     featuredUntil: t.featuredUntil?.toISOString() ?? null,
     badges,
     claimed: t.claimed,

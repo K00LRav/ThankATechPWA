@@ -51,6 +51,8 @@ export const ListTechniciansResponseItem = zod.object({
   claimed: zod.boolean().optional(),
   claimRequestPending: zod.boolean().optional(),
   googlePlaceId: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  website: zod.string().nullish(),
   createdAt: zod.string().optional(),
 });
 export const ListTechniciansResponse = zod.array(ListTechniciansResponseItem);
@@ -102,6 +104,8 @@ export const GetTechnicianResponse = zod.object({
   claimed: zod.boolean().optional(),
   claimRequestPending: zod.boolean().optional(),
   googlePlaceId: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  website: zod.string().nullish(),
   createdAt: zod.string().optional(),
 });
 

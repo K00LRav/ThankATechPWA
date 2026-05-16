@@ -29,7 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check, Flag } from "lucide-react";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check, Flag, Phone, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -185,6 +185,16 @@ export function TechnicianProfile() {
                 <span className="flex items-center gap-1.5"><MapPin size={16}/> {tech.serviceArea}</span>
                 <span className="flex items-center gap-1.5 text-primary"><Heart size={16} fill="currentColor"/> {stats?.totalThanks || 0} Thanks</span>
                 {tech.hourlyRate && <span className="flex items-center gap-1.5"><DollarSign size={16}/> ${tech.hourlyRate}/hr</span>}
+                {tech.phone && (
+                  <a href={`tel:${tech.phone}`} className="flex items-center gap-1.5 text-secondary font-medium hover:underline">
+                    <Phone size={16}/> {tech.phone}
+                  </a>
+                )}
+                {tech.website && (
+                  <a href={tech.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-secondary font-medium hover:underline">
+                    <Globe size={16}/> Website
+                  </a>
+                )}
                 {(() => {
                   const badge = getMilestoneBadge(stats?.totalThanks ?? 0);
                   return badge ? (

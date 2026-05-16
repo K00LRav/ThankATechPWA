@@ -1005,6 +1005,10 @@ components:
           type: boolean
         googlePlaceId:
           type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
         createdAt:
           type: string
 

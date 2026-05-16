@@ -41,6 +41,11 @@ interface PlaceResult {
   photos?: PlacePhoto[];
 }
 
+interface PlaceDetails {
+  formatted_phone_number?: string;
+  website?: string;
+}
+
 interface TextSearchResponse {
   results: PlaceResult[];
   status: string;
@@ -49,6 +54,16 @@ interface TextSearchResponse {
 
 function buildPhotoUrl(photoReference: string): string {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoReference}&key=${GOOGLE_MAPS_API_KEY}`;
+}
+
+async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("fields", "formatted_phone_number,website");
+  url.searchParams.set("key", GOOGLE_MAPS_API_KEY!);
+  const resp = await fetch(url.toString());
+  const data = (await resp.json()) as { result?: PlaceDetails; status: string };
+  return data.result ?? {};
 }
 
 async function searchPlaces(query: string, location: string): Promise<PlaceResult[]> {
@@ -113,6 +128,9 @@ async function importCity(city: string): Promise<number> {
       const photoRef = place.photos?.[0]?.photo_reference ?? null;
       const avatarUrl = photoRef ? buildPhotoUrl(photoRef) : null;
 
+      const details = await fetchPlaceDetails(place.place_id);
+      await new Promise((r) => setTimeout(r, 100));
+
       await db.insert(techniciansTable).values({
         fullName: place.name,
         specialty: label,
@@ -124,12 +142,16 @@ async function importCity(city: string): Promise<number> {
         longitude: place.geometry?.location.lng ?? null,
         googlePlaceId: place.place_id,
         avatarUrl,
+        phone: details.formatted_phone_number ?? null,
+        website: details.website ?? null,
         claimed: false,
         claimRequestPending: false,
       });
 
       const photoStatus = avatarUrl ? "📷 with photo" : "no photo";
-      console.log(`    ✓ ${place.name} (${label}) [${photoStatus}]`);
+      const phoneStatus = details.formatted_phone_number ? "📞" : "";
+      const webStatus = details.website ? "🌐" : "";
+      console.log(`    ✓ ${place.name} (${label}) [${photoStatus}] ${phoneStatus}${webStatus}`);
       imported++;
     }
 

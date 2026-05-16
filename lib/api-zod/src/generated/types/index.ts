@@ -51,4 +51,6 @@ export * from "./technicianInput";
 export * from "./technicianStats";
 export * from "./thankMessage";
 export * from "./thankMessageInput";
+export * from "./uploadUrlRequest";
+export * from "./uploadUrlResponse";
 export * from "./upsertProfileInput";

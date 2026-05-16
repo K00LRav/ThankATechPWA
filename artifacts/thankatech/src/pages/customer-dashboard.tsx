@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyProfile } from "@/hooks/useMyProfile";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -260,11 +261,18 @@ export function CustomerDashboard() {
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-serif font-bold">My Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}! Manage your jobs and send gratitude.
-            </p>
+          <div className="flex items-center gap-4">
+            <AvatarUpload
+              avatarUrl={profile?.avatarUrl}
+              fullName={profile?.fullName}
+              className="w-16 h-16"
+            />
+            <div>
+              <h1 className="text-3xl font-serif font-bold">My Dashboard</h1>
+              <p className="text-muted-foreground mt-1">
+                Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}! Manage your jobs and send gratitude.
+              </p>
+            </div>
           </div>
           <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-white shadow-sm self-start sm:self-auto">
             <Link href="/browse">

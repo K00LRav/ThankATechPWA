@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QRCode from "react-qr-code";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
   tip_discount_5:   <Tag className="w-5 h-5 text-green-600" />,
@@ -242,11 +243,18 @@ export function TechnicianDashboard() {
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
       <div className="container mx-auto max-w-6xl space-y-8">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl font-serif font-bold">Tech Portal</h1>
-            <p className="text-muted-foreground mt-1">
-              Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}. Here's how you're doing.
-            </p>
+          <div className="flex items-center gap-4">
+            <AvatarUpload
+              avatarUrl={profile?.avatarUrl}
+              fullName={profile?.fullName}
+              className="w-16 h-16"
+            />
+            <div>
+              <h1 className="text-3xl font-serif font-bold">Tech Portal</h1>
+              <p className="text-muted-foreground mt-1">
+                Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}. Here's how you're doing.
+              </p>
+            </div>
           </div>
           <Button variant="outline" className="rounded-full gap-2 flex-shrink-0" onClick={() => setShowCardDialog(true)}>
             <CreditCard className="w-4 h-4" />

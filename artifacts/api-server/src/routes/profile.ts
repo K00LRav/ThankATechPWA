@@ -73,9 +73,11 @@ router.post("/profile/me", async (req: Request, res: Response) => {
     const isNew = !existing;
     let profile;
     if (existing) {
+      const updateFields: Record<string, unknown> = { userType, fullName };
+      if (avatarUrl !== undefined) updateFields.avatarUrl = avatarUrl;
       [profile] = await db
         .update(profilesTable)
-        .set({ userType, fullName })
+        .set(updateFields)
         .where(eq(profilesTable.userId, userId))
         .returning();
     } else {
@@ -134,6 +136,38 @@ router.post("/profile/me", async (req: Request, res: Response) => {
     });
   } catch (err) {
     req.log.error({ err }, "Error upserting profile");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/profile/me/avatar", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const userId = req.user.id;
+  const { avatarUrl } = req.body;
+
+  if (!avatarUrl || typeof avatarUrl !== "string") {
+    res.status(400).json({ error: "avatarUrl is required" });
+    return;
+  }
+
+  try {
+    await db
+      .update(profilesTable)
+      .set({ avatarUrl })
+      .where(eq(profilesTable.userId, userId));
+
+    await db
+      .update(techniciansTable)
+      .set({ avatarUrl })
+      .where(eq(techniciansTable.userId, userId));
+
+    res.json({ avatarUrl });
+  } catch (err) {
+    req.log.error({ err }, "Error updating avatar");
     res.status(500).json({ error: "Internal server error" });
   }
 });

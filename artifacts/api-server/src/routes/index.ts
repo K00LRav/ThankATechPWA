@@ -11,6 +11,7 @@ import stripeRouter from "./stripe";
 import pushTokensRouter from "./push-tokens";
 import adminRouter from "./admin";
 import guestTipsRouter from "./guest-tips";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(stripeRouter);
 router.use(pushTokensRouter);
 router.use(adminRouter);
 router.use(guestTipsRouter);
+router.use(storageRouter);
 
 export default router;

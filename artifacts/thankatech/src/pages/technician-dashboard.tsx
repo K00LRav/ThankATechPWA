@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useListJobs, useGetTechnicianStats, useGetStripeConnectStatus, useCreateStripeConnectOnboarding, useGetStripeConnectDashboardLink, useGetStripeEarnings, useGetTechnicianEarnings, useUpdateJob, useGetPointTransactions, useGetPoints, useListRewards, useRedeemPoints, getListJobsQueryKey, getGetTechnicianStatsQueryKey, getGetStripeConnectStatusQueryKey, getGetStripeConnectDashboardLinkQueryKey, getGetStripeEarningsQueryKey, getGetTechnicianEarningsQueryKey, getGetPointTransactionsQueryKey, getGetPointsQueryKey, getListRewardsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon, Download } from "lucide-react";
+import { Heart, DollarSign, CheckCircle2, TrendingUp, ExternalLink, ShieldCheck, AlertCircle, Landmark, ReceiptText, Check, X, Star, Sparkles, Tag, Gift, TableIcon, Download, CreditCard, Copy, Share2, Printer, Link2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import QRCode from "react-qr-code";
 
 const REWARD_ICONS: Record<string, React.ReactNode> = {
   tip_discount_5:   <Tag className="w-5 h-5 text-green-600" />,
@@ -26,6 +28,9 @@ export function TechnicianDashboard() {
   const queryClient = useQueryClient();
 
   const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [showCardDialog, setShowCardDialog] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const { data: stats, isLoading: isStatsLoading } = useGetTechnicianStats(technicianId!, {
     query: { enabled: !!technicianId, queryKey: getGetTechnicianStatsQueryKey(technicianId!) }
@@ -180,14 +185,62 @@ export function TechnicianDashboard() {
   const activeJobs = jobs?.filter(j => j.status === 'confirmed') ?? [];
   const completedJobs = jobs?.filter(j => j.status === 'completed') ?? [];
 
+  const profileUrl = `https://www.thankatech.com/technician/${technicianId}`;
+
+  function copyProfileLink() {
+    navigator.clipboard.writeText(profileUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
+
+  function printCard() {
+    const card = cardRef.current;
+    if (!card) return;
+    const win = window.open("", "_blank", "width=500,height=700");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>ThankATech Business Card</title>
+      <style>
+        body { margin: 0; padding: 24px; font-family: Georgia, serif; background: #fff8f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; border: 2px solid #FF6B35; border-radius: 16px; padding: 32px 28px; text-align: center; width: 320px; }
+        .logo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+        .logo-text { font-size: 20px; font-weight: 800; color: #2d2926; }
+        .logo-dot { width: 10px; height: 10px; background: #FF6B35; border-radius: 50%; }
+        .name { font-size: 22px; font-weight: 700; color: #2d2926; margin: 12px 0 4px; }
+        .tagline { font-size: 12px; color: #9c8f7e; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
+        .qr { background: white; padding: 12px; border: 1px solid #eee; border-radius: 12px; display: inline-block; margin-bottom: 16px; }
+        .scan { font-size: 12px; color: #6b5f53; margin-bottom: 8px; }
+        .url { font-size: 11px; color: #FF6B35; word-break: break-all; }
+        .footer { margin-top: 16px; font-size: 11px; color: #9c8f7e; font-style: italic; }
+      </style></head><body>
+      <div class="card">
+        <div class="logo"><div class="logo-dot"></div><span class="logo-text">ThankATech</span></div>
+        <div class="name">${profile?.fullName ?? "Technician"}</div>
+        <div class="tagline">Real thanks. Real tips. No ratings.</div>
+        ${card.querySelector("svg")?.outerHTML ?? ""}
+        <div class="scan">Scan to view my profile &amp; send thanks</div>
+        <div class="url">${profileUrl}</div>
+        <div class="footer">thankatech.com</div>
+      </div></body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  }
+
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-muted/10 py-8 px-4">
       <div className="container mx-auto max-w-6xl space-y-8">
-        <div>
-          <h1 className="text-3xl font-serif font-bold">Tech Portal</h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}. Here's how you're doing.
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-serif font-bold">Tech Portal</h1>
+            <p className="text-muted-foreground mt-1">
+              Welcome back{profile?.fullName ? `, ${profile.fullName}` : ""}. Here's how you're doing.
+            </p>
+          </div>
+          <Button variant="outline" className="rounded-full gap-2 flex-shrink-0" onClick={() => setShowCardDialog(true)}>
+            <CreditCard className="w-4 h-4" />
+            My Business Card
+          </Button>
         </div>
 
         {stripeStatus !== undefined && (
@@ -669,6 +722,83 @@ export function TechnicianDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Business Card Dialog */}
+      <Dialog open={showCardDialog} onOpenChange={setShowCardDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Your Business Card</DialogTitle>
+          </DialogHeader>
+
+          {/* The card itself */}
+          <div ref={cardRef} className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-secondary/5 p-6 text-center space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary" />
+              <span className="font-serif font-bold text-lg tracking-tight">ThankATech</span>
+            </div>
+            <div>
+              <p className="font-bold text-xl text-foreground">{profile?.fullName ?? "Technician"}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Real thanks. Real tips. No ratings.</p>
+            </div>
+            <div className="bg-white p-3 rounded-xl border border-border inline-block mx-auto">
+              <QRCode value={profileUrl} size={140} fgColor="#2d2926" />
+            </div>
+            <p className="text-xs text-muted-foreground">Scan to view my profile &amp; send a thank you</p>
+            <p className="text-xs font-medium text-primary break-all">{profileUrl}</p>
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="rounded-full gap-2" onClick={copyProfileLink}>
+              {linkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {linkCopied ? "Copied!" : "Copy link"}
+            </Button>
+            <Button variant="outline" className="rounded-full gap-2" onClick={printCard}>
+              <Printer className="w-4 h-4" />
+              Print card
+            </Button>
+          </div>
+
+          {/* Social sharing */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground text-center font-medium">Share your profile</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Send me a thank you on ThankATech! ${profileUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+              >
+                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                  <Share2 className="w-3.5 h-3.5" /> X / Twitter
+                </Button>
+              </a>
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
+                target="_blank" rel="noopener noreferrer"
+              >
+                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                  <Share2 className="w-3.5 h-3.5" /> Facebook
+                </Button>
+              </a>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Check out my ThankATech profile and send me a thank you! ${profileUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+              >
+                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                  <Share2 className="w-3.5 h-3.5" /> WhatsApp
+                </Button>
+              </a>
+              <a
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
+                target="_blank" rel="noopener noreferrer"
+              >
+                <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                  <Link2 className="w-3.5 h-3.5" /> LinkedIn
+                </Button>
+              </a>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

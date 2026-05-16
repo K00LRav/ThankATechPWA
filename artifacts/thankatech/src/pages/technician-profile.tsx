@@ -6,6 +6,7 @@ import {
   useGetTechnicianWallOfThanks, 
   useGetTechnicianStats,
   useCreateJob,
+  useSubmitClaimRequest,
   getGetTechnicianQueryKey,
   getGetTechnicianWallOfThanksQueryKey,
   getGetTechnicianStatsQueryKey
@@ -26,7 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check } from "lucide-react";
+import { Heart, MapPin, Wrench, Award, DollarSign, CalendarPlus, CheckCircle, Clock, LayoutDashboard, Share2, Copy, Check, Flag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -62,6 +63,12 @@ export function TechnicianProfile() {
   const [address, setAddress] = useState("");
   const [confirmedTitle, setConfirmedTitle] = useState("");
 
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+  const [claimDone, setClaimDone] = useState(false);
+  const [claimName, setClaimName] = useState("");
+  const [claimEmail, setClaimEmail] = useState("");
+  const [claimPhone, setClaimPhone] = useState("");
+
   function handleDialogOpenChange(open: boolean) {
     setDialogOpen(open);
     if (!open) {
@@ -73,6 +80,24 @@ export function TechnicianProfile() {
         setConfirmedTitle("");
       }, 300);
     }
+  }
+
+  const { mutate: submitClaim, isPending: isClaimPending } = useSubmitClaimRequest({
+    mutation: {
+      onSuccess: () => {
+        setClaimDone(true);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast.error(msg ?? "Failed to submit claim request");
+      },
+    },
+  });
+
+  function handleClaimSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    submitClaim({ id, data: { claimantName: claimName.trim(), claimantEmail: claimEmail.trim(), claimantPhone: claimPhone.trim() } });
   }
 
   const { mutate: createJob, isPending } = useCreateJob({
@@ -226,6 +251,26 @@ export function TechnicianProfile() {
       </div>
 
       <div className="container mx-auto max-w-4xl px-4 -mt-8 space-y-8">
+
+        {/* Unclaimed profile banner */}
+        {tech.claimed === false && !tech.claimRequestPending && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Flag size={18} className="text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800 font-medium">Is this your business? Claim this profile to manage it.</p>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={() => setClaimDialogOpen(true)}>
+              Claim profile
+            </Button>
+          </div>
+        )}
+        {tech.claimRequestPending && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 flex items-center gap-3">
+            <Clock size={18} className="text-blue-600 shrink-0" />
+            <p className="text-sm text-blue-800 font-medium">A claim request is pending review for this profile.</p>
+          </div>
+        )}
+
         <Card className="shadow-md border-0">
           <CardContent className="p-8 space-y-6">
             {/* Milestone badges strip */}
@@ -447,6 +492,52 @@ export function TechnicianProfile() {
               </motion.div>
             )}
           </AnimatePresence>
+        </DialogContent>
+      </Dialog>
+
+      {/* Claim profile dialog */}
+      <Dialog open={claimDialogOpen} onOpenChange={(open) => { setClaimDialogOpen(open); if (!open) { setClaimDone(false); setClaimName(""); setClaimEmail(""); setClaimPhone(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Claim this profile</DialogTitle>
+            <DialogDescription>
+              {claimDone
+                ? "We've received your request and will review it shortly."
+                : `Is "${tech.fullName}" your business? Submit your details and we'll verify and hand over the profile.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {claimDone ? (
+            <div className="flex flex-col items-center gap-4 py-6 text-center">
+              <CheckCircle className="w-14 h-14 text-secondary" strokeWidth={1.5} />
+              <div>
+                <p className="font-semibold text-lg">Request received!</p>
+                <p className="text-muted-foreground text-sm mt-1">We'll reach out to you within 1–2 business days to verify ownership.</p>
+              </div>
+              <Button className="mt-2" onClick={() => setClaimDialogOpen(false)}>Close</Button>
+            </div>
+          ) : (
+            <form onSubmit={handleClaimSubmit} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-name">Your full name</Label>
+                <Input id="claim-name" placeholder="Jane Smith" value={claimName} onChange={e => setClaimName(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-email">Business email</Label>
+                <Input id="claim-email" type="email" placeholder="you@yourbusiness.com" value={claimEmail} onChange={e => setClaimEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-phone">Business phone</Label>
+                <Input id="claim-phone" type="tel" placeholder="+1 (555) 000-0000" value={claimPhone} onChange={e => setClaimPhone(e.target.value)} required />
+              </div>
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="ghost" onClick={() => setClaimDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isClaimPending} className="gap-2">
+                  {isClaimPending ? "Submitting…" : "Submit claim request"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -20,6 +20,10 @@ export const techniciansTable = pgTable("technicians", {
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
   featuredUntil: timestamp("featured_until", { withTimezone: true }),
+  claimed: boolean("claimed").notNull().default(false),
+  claimedByUserId: varchar("claimed_by_user_id"),
+  googlePlaceId: varchar("google_place_id"),
+  claimRequestPending: boolean("claim_request_pending").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

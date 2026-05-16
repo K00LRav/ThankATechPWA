@@ -19,6 +19,8 @@ import type {
 import type {
   AuthUserEnvelope,
   BeginBrowserLoginParams,
+  ClaimRequestInput,
+  ClaimRequestResult,
   ErrorEnvelope,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
@@ -413,6 +415,93 @@ export function useGetTechnician<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Submit a claim request for an unclaimed technician profile
+ */
+export const getSubmitClaimRequestUrl = (id: number) => {
+  return `/api/technicians/${id}/claim`;
+};
+
+export const submitClaimRequest = async (
+  id: number,
+  claimRequestInput: ClaimRequestInput,
+  options?: RequestInit,
+): Promise<ClaimRequestResult> => {
+  return customFetch<ClaimRequestResult>(getSubmitClaimRequestUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(claimRequestInput),
+  });
+};
+
+export const getSubmitClaimRequestMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitClaimRequest>>,
+    TError,
+    { id: number; data: BodyType<ClaimRequestInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitClaimRequest>>,
+  TError,
+  { id: number; data: BodyType<ClaimRequestInput> },
+  TContext
+> => {
+  const mutationKey = ["submitClaimRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitClaimRequest>>,
+    { id: number; data: BodyType<ClaimRequestInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return submitClaimRequest(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitClaimRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitClaimRequest>>
+>;
+export type SubmitClaimRequestMutationBody = BodyType<ClaimRequestInput>;
+export type SubmitClaimRequestMutationError = ErrorType<void>;
+
+/**
+ * @summary Submit a claim request for an unclaimed technician profile
+ */
+export const useSubmitClaimRequest = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitClaimRequest>>,
+    TError,
+    { id: number; data: BodyType<ClaimRequestInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitClaimRequest>>,
+  TError,
+  { id: number; data: BodyType<ClaimRequestInput> },
+  TContext
+> => {
+  return useMutation(getSubmitClaimRequestMutationOptions(options));
+};
 
 /**
  * @summary Get technician's wall of thanks

@@ -48,6 +48,9 @@ export const ListTechniciansResponseItem = zod.object({
     .array(zod.string())
     .optional()
     .describe("Badge IDs earned by this technician (e.g. top_tech_badge)"),
+  claimed: zod.boolean().optional(),
+  claimRequestPending: zod.boolean().optional(),
+  googlePlaceId: zod.string().nullish(),
   createdAt: zod.string().optional(),
 });
 export const ListTechniciansResponse = zod.array(ListTechniciansResponseItem);
@@ -96,7 +99,23 @@ export const GetTechnicianResponse = zod.object({
     .array(zod.string())
     .optional()
     .describe("Badge IDs earned by this technician (e.g. top_tech_badge)"),
+  claimed: zod.boolean().optional(),
+  claimRequestPending: zod.boolean().optional(),
+  googlePlaceId: zod.string().nullish(),
   createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Submit a claim request for an unclaimed technician profile
+ */
+export const SubmitClaimRequestParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SubmitClaimRequestBody = zod.object({
+  claimantName: zod.string(),
+  claimantEmail: zod.string().email(),
+  claimantPhone: zod.string(),
 });
 
 /**

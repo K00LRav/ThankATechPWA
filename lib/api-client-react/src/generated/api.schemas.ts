@@ -32,6 +32,10 @@ export interface Technician {
   featuredUntil?: string | null;
   /** Badge IDs earned by this technician (e.g. top_tech_badge) */
   badges?: string[];
+  claimed?: boolean;
+  claimRequestPending?: boolean;
+  /** @nullable */
+  googlePlaceId?: string | null;
   createdAt?: string;
 }
 
@@ -343,6 +347,16 @@ export interface UploadUrlResponse {
   /** Normalized object path (e.g. /objects/uploads/uuid). */
   objectPath: string;
   metadata?: UploadUrlRequest;
+}
+
+export interface ClaimRequestInput {
+  claimantName: string;
+  claimantEmail: string;
+  claimantPhone: string;
+}
+
+export interface ClaimRequestResult {
+  ok: boolean;
 }
 
 /**

@@ -29,5 +29,9 @@ export interface Technician {
   featuredUntil?: string | null;
   /** Badge IDs earned by this technician (e.g. top_tech_badge) */
   badges?: string[];
+  claimed?: boolean;
+  claimRequestPending?: boolean;
+  /** @nullable */
+  googlePlaceId?: string | null;
   createdAt?: string;
 }

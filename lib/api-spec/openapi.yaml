@@ -111,6 +111,33 @@ paths:
         "404":
           description: Not found
 
+  /technicians/{id}/claim:
+    post:
+      operationId: submitClaimRequest
+      tags: [technicians]
+      summary: Submit a claim request for an unclaimed technician profile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimRequestInput"
+      responses:
+        "201":
+          description: Claim request submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimRequestResult"
+        "409":
+          description: Already claimed or pending
+
   /technicians/{id}/wall-of-thanks:
     get:
       operationId: getTechnicianWallOfThanks
@@ -972,6 +999,12 @@ components:
           items:
             type: string
           description: Badge IDs earned by this technician (e.g. top_tech_badge)
+        claimed:
+          type: boolean
+        claimRequestPending:
+          type: boolean
+        googlePlaceId:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -1489,3 +1522,22 @@ components:
           description: Normalized object path (e.g. /objects/uploads/uuid).
         metadata:
           $ref: '#/components/schemas/UploadUrlRequest'
+
+    ClaimRequestInput:
+      type: object
+      required: [claimantName, claimantEmail, claimantPhone]
+      properties:
+        claimantName:
+          type: string
+        claimantEmail:
+          type: string
+          format: email
+        claimantPhone:
+          type: string
+
+    ClaimRequestResult:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean

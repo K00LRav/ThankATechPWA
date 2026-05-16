@@ -12,6 +12,7 @@ import pushTokensRouter from "./push-tokens";
 import adminRouter from "./admin";
 import guestTipsRouter from "./guest-tips";
 import storageRouter from "./storage";
+import claimsRouter from "./claims";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(pushTokensRouter);
 router.use(adminRouter);
 router.use(guestTipsRouter);
 router.use(storageRouter);
+router.use(claimsRouter);
 
 export default router;

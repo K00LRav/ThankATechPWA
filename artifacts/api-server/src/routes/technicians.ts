@@ -269,6 +269,9 @@ function formatTechnician(
     distanceMiles,
     featuredUntil: t.featuredUntil?.toISOString() ?? null,
     badges,
+    claimed: t.claimed,
+    claimRequestPending: t.claimRequestPending,
+    googlePlaceId: t.googlePlaceId ?? null,
     createdAt: t.createdAt?.toISOString(),
   };
 }

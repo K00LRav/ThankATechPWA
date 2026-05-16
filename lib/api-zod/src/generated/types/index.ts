@@ -10,6 +10,8 @@ export * from "./authorizationSessionHeaderParameter";
 export * from "./authUser";
 export * from "./authUserEnvelope";
 export * from "./beginBrowserLoginParams";
+export * from "./claimRequestInput";
+export * from "./claimRequestResult";
 export * from "./earningEntry";
 export * from "./errorEnvelope";
 export * from "./handleBrowserLoginCallbackParams";
